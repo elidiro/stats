@@ -1,8 +1,4 @@
-  const ASSET_BASE =
-    'https:' +
-    '/' +
-    '/' +
-    'elidiro.github.io/archwebapp-assets1';
+  const ASSET_BASE = '.';
 
 
   const API_URL =
