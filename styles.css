@@ -717,7 +717,7 @@
 
   .chart-value-label {
     fill: var(--text);
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 850;
     paint-order: stroke;
     stroke: var(--surface);
@@ -737,7 +737,7 @@
 
   .chart-average-label {
     fill: rgba(255, 255, 255, 0.72);
-    font-size: 14px;
+    font-size: 10px;
     font-weight: 800;
     paint-order: stroke;
     stroke: var(--surface);
