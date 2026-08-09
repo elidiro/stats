@@ -1,4 +1,4 @@
-const CACHE_NAME = 'elidir-stats-shell-v1';
+const CACHE_NAME = 'elidir-stats-shell-v2';
 
 const CORE_FILES = [
   './',
@@ -9,6 +9,7 @@ const CORE_FILES = [
   './icon-192.png',
   './icon-512.png',
   './apple-touch-icon.png',
+  './loading-snohfo.png',
   './TKborder.png',
   './FDborder.png',
   './FDEborder.png',

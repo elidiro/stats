@@ -60,7 +60,11 @@
 
 <body>
   <div id="loadingScreen" class="loading-screen">
-    <div class="spinner"></div>
+    <img
+      class="loading-mascot"
+      src="loading-snohfo.png"
+      alt=""
+    >
     <p>Loading your stats…</p>
   </div>
 
@@ -271,17 +275,6 @@
             class="streaks-grid"
           ></div>
         </section>
-
-        <section class="section-block">
-          <div class="section-title-row">
-            <h2>Personal records</h2>
-          </div>
-
-          <div
-            id="recordsGrid"
-            class="records-grid"
-          ></div>
-        </section>
       </div>
 
       <!-- BOSSES -->
@@ -462,6 +455,15 @@
               </tbody>
             </table>
           </div>
+
+          <button
+            id="bossResultsToggle"
+            class="boss-results-toggle hidden"
+            type="button"
+            onclick="toggleBossResultsExpansion()"
+          >
+            Show all results
+          </button>
         </section>
 
         <section class="boss-comparison-section">
@@ -513,83 +515,71 @@
           <h2>Progress</h2>
         </section>
 
-        <section class="card progress-chart-card">
+        <section class="card progress-chart-card progress-chart-selector-card">
+          <div
+            class="progress-chart-tabs"
+            role="tablist"
+            aria-label="Choose progress graph"
+          >
+            <button
+              class="progress-chart-tab active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              data-progress-metric="power"
+            >
+              Power
+            </button>
+
+            <button
+              class="progress-chart-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-progress-metric="dpr"
+            >
+              DPR
+            </button>
+
+            <button
+              class="progress-chart-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-progress-metric="damage"
+            >
+              Damage
+            </button>
+
+            <button
+              class="progress-chart-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-progress-metric="rank"
+            >
+              Rank
+            </button>
+          </div>
+
           <div class="progress-chart-heading">
             <div>
-              <p class="tile-heading">
+              <p
+                id="progressChartEyebrow"
+                class="tile-heading"
+              >
                 Power progression
               </p>
 
-              <h2>Weekly ending power</h2>
+              <h2 id="progressChartTitle">
+                Weekly ending power
+              </h2>
             </div>
           </div>
 
           <div class="progress-chart-container">
             <svg
-              id="powerProgressChart"
-              class="progress-chart"
-              viewBox="0 0 700 260"
-              role="img"
-            ></svg>
-          </div>
-        </section>
-
-        <section class="card progress-chart-card">
-          <div class="progress-chart-heading">
-            <div>
-              <p class="tile-heading">
-                DPR progression
-              </p>
-
-              <h2>Weekly average DPR</h2>
-            </div>
-          </div>
-
-          <div class="progress-chart-container">
-            <svg
-              id="dprProgressChart"
-              class="progress-chart"
-              viewBox="0 0 700 260"
-              role="img"
-            ></svg>
-          </div>
-        </section>
-
-        <section class="card progress-chart-card">
-          <div class="progress-chart-heading">
-            <div>
-              <p class="tile-heading">
-                Damage progression
-              </p>
-
-              <h2>Weekly average damage</h2>
-            </div>
-          </div>
-
-          <div class="progress-chart-container">
-            <svg
-              id="damageProgressChart"
-              class="progress-chart"
-              viewBox="0 0 700 260"
-              role="img"
-            ></svg>
-          </div>
-        </section>
-
-        <section class="card progress-chart-card">
-          <div class="progress-chart-heading">
-            <div>
-              <p class="tile-heading">
-                DPR rank progression
-              </p>
-
-              <h2>Weekly average guild rank</h2>
-            </div>
-          </div>
-
-          <div class="progress-chart-container">
-            <svg
-              id="rankProgressChart"
+              id="progressChart"
               class="progress-chart"
               viewBox="0 0 700 260"
               role="img"

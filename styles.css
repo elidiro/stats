@@ -779,7 +779,7 @@
 
     color: #c3c5d1;
 
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 720;
     line-height: 1.35;
   }
@@ -794,13 +794,13 @@
   }
 
   .streak-current {
-    font-size: 28px;
+    font-size: 30px;
     font-weight: 800;
   }
 
   .streak-best {
     color: var(--muted);
-    font-size: 10px;
+    font-size: 12px;
     text-align: right;
   }
 
@@ -1502,20 +1502,15 @@
     font-size: 14px;
   }
 
-  .spinner {
-    width: 34px;
-    height: 34px;
-
-    border:
-      3px solid
-      rgba(255, 255, 255, 0.1);
-
-    border-top-color: var(--accent);
-    border-radius: 50%;
-
+  .loading-mascot {
+    display: block;
+    width: 96px;
+    height: 96px;
+    object-fit: contain;
     animation:
-      spin 0.8s linear infinite;
+      loadingMascotPulse 1.6s ease-in-out infinite;
   }
+
 
   .error-screen button {
     margin-top: 18px;
@@ -1692,7 +1687,7 @@
     display: block;
     margin-top: 2px;
     color: var(--muted);
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 650;
   }
 
@@ -2340,4 +2335,160 @@
     .milestone-context {
       text-align: left;
     }
+  }
+
+
+  /* ==========================================================
+   * AUGUST 9 UX / PWA UPDATE
+   * ========================================================== */
+
+  html,
+  body {
+    overscroll-behavior-y: none;
+  }
+
+  @keyframes loadingMascotPulse {
+    0%,
+    100% {
+      transform: translateY(0) scale(1);
+      opacity: 0.88;
+    }
+
+    50% {
+      transform: translateY(-5px) scale(1.035);
+      opacity: 1;
+    }
+  }
+
+  body.home-view-active,
+  body.boss-view-active {
+    background:
+      linear-gradient(
+        180deg,
+        var(--boss-glow) 0%,
+        var(--boss-surface) 40%,
+        rgba(9, 10, 15, 0.28) 76%,
+        rgba(9, 10, 15, 0.78) 93%,
+        var(--background) 100%
+      ),
+      var(--background);
+
+    background-attachment: scroll;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+  }
+
+  .boss-results-toggle {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 12px 16px;
+
+    border:
+      1px solid var(--border);
+
+    border-radius: 14px;
+
+    background:
+      var(--surface-raised);
+
+    color: var(--text);
+
+    font-size: 12px;
+    font-weight: 760;
+
+    cursor: pointer;
+  }
+
+  .boss-results-toggle:hover,
+  .boss-results-toggle:focus-visible {
+    border-color:
+      rgba(255, 255, 255, 0.15);
+
+    filter: brightness(1.08);
+  }
+
+  .progress-chart-selector-card {
+    overflow: hidden;
+  }
+
+  .progress-chart-tabs {
+    display: grid;
+
+    grid-template-columns:
+      repeat(4, minmax(0, 1fr));
+
+    gap: 7px;
+    margin: 0 5px 16px;
+  }
+
+  .progress-chart-tab {
+    --tab-colour: var(--accent);
+    --tab-soft: var(--accent-soft);
+
+    min-width: 0;
+    padding: 10px 5px;
+
+    border:
+      1px solid var(--border);
+
+    border-radius: 12px;
+
+    background:
+      var(--surface-raised);
+
+    color: var(--muted);
+
+    font-size:
+      clamp(10px, 2.8vw, 12px);
+
+    font-weight: 780;
+
+    cursor: pointer;
+
+    transition:
+      color 160ms ease,
+      border-color 160ms ease,
+      background 160ms ease,
+      box-shadow 160ms ease,
+      transform 160ms ease;
+  }
+
+  .progress-chart-tab[data-progress-metric="power"] {
+    --tab-colour: #ffab45;
+    --tab-soft: rgba(255, 171, 69, 0.16);
+  }
+
+  .progress-chart-tab[data-progress-metric="dpr"] {
+    --tab-colour: #4da3ff;
+    --tab-soft: rgba(77, 163, 255, 0.16);
+  }
+
+  .progress-chart-tab[data-progress-metric="damage"] {
+    --tab-colour: #ff5a66;
+    --tab-soft: rgba(255, 90, 102, 0.16);
+  }
+
+  .progress-chart-tab[data-progress-metric="rank"] {
+    --tab-colour: #ff70d7;
+    --tab-soft: rgba(255, 112, 215, 0.16);
+  }
+
+  .progress-chart-tab.active {
+    border-color: var(--tab-colour);
+    background: var(--tab-soft);
+    color: var(--tab-colour);
+
+    box-shadow:
+      0 0 16px var(--tab-soft),
+      inset 0 0 16px var(--tab-soft);
+
+    transform: translateY(-1px);
+  }
+
+  .progress-chart-tab:focus-visible {
+    outline:
+      2px solid var(--tab-colour);
+
+    outline-offset: 2px;
   }

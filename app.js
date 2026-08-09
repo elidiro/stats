@@ -227,6 +227,13 @@
   let recordsData = null;
 
   const bossPageCache = {};
+  const bossResultsExpandedByBoss = {};
+
+  let currentBossResults = [];
+  let currentBossResultsShowBossColumn = false;
+  let currentBossResultsCode = 'TK';
+
+  let activeProgressMetric = 'power';
 
   let activeHomeBossCode = 'TK';
   let bossCarouselFrame = null;
@@ -273,7 +280,142 @@
       }
     );
 
-    loadHomePage();
+    document
+      .querySelectorAll(
+        '.progress-chart-tab'
+      )
+      .forEach(function(button) {
+        button.addEventListener(
+          'click',
+          function() {
+            setProgressMetric(
+              button.dataset.progressMetric
+            );
+          }
+        );
+      });
+
+    loadInitialAppData(false);
+  }
+
+
+
+  /**
+   * ==========================================================
+   * INITIAL APP PRELOAD
+   * ==========================================================
+   */
+
+  function requestApiPromise(api, params) {
+    return new Promise(function(resolve, reject) {
+      requestApi(
+        api,
+        params || {},
+        resolve,
+        reject
+      );
+    });
+  }
+
+
+  async function loadInitialAppData(forceRefresh) {
+    showLoading();
+
+    if (forceRefresh) {
+      homepageData = null;
+      progressData = null;
+      recordsData = null;
+
+      Object
+        .keys(bossPageCache)
+        .forEach(function(code) {
+          delete bossPageCache[code];
+        });
+    }
+
+    try {
+      const results =
+        await Promise.all([
+          requestApiPromise('home', {}),
+          requestApiPromise('progress', {}),
+          requestApiPromise('records', {}),
+          requestApiPromise(
+            'boss',
+            { boss: currentBossCode }
+          )
+        ]);
+
+      homepageData = results[0];
+      progressData = results[1];
+      recordsData = results[2];
+      bossPageCache[currentBossCode] =
+        results[3];
+
+      renderBossPage(
+        bossPageCache[currentBossCode]
+      );
+
+      renderProgressPage(progressData);
+      renderFullRecordsPage(recordsData);
+      renderHomePage(homepageData);
+
+      showHomeView(false);
+      hideLoading();
+
+      requestAnimationFrame(
+        function() {
+          renderDprChart(
+            homepageData.lastSeven || []
+          );
+        }
+      );
+
+      preloadRemainingBossPages();
+
+    } catch (error) {
+      showError(error);
+    }
+  }
+
+
+  function preloadRemainingBossPages() {
+    const codes = [
+      'ALL',
+      'TK',
+      'FD',
+      'FDe',
+      'Snek',
+      'SG',
+      'CM',
+      'SM'
+    ].filter(function(code) {
+      return !bossPageCache[code];
+    });
+
+    let index = 0;
+
+    const loadNext = function() {
+      if (index >= codes.length) {
+        return;
+      }
+
+      const code = codes[index];
+      index += 1;
+
+      requestApi(
+        'boss',
+        { boss: code },
+        function(data) {
+          bossPageCache[code] = data;
+          loadNext();
+        },
+        function() {
+          loadNext();
+        }
+      );
+    };
+
+    loadNext();
   }
 
 
@@ -317,7 +459,6 @@
     renderAverages(data.averages);
     renderLastSeven(data.lastSeven);
     renderStreaks(data.streaks);
-    renderRecords(data.records);
 
     activeHomeBossCode =
       data.identity.todaysBossCode ||
@@ -1252,7 +1393,8 @@
 
     renderBossResultsTable(
       data.results || [],
-      data.isAllBosses === true
+      data.isAllBosses === true,
+      boss.code
     );
 
     renderBossComparison(
@@ -1267,7 +1409,8 @@
 
   function renderBossResultsTable(
     results,
-    showBossColumn
+    showBossColumn,
+    bossCode
   ) {
     const body =
       document.getElementById(
@@ -1279,16 +1422,46 @@
         '.boss-results-table'
       );
 
+    const toggle =
+      document.getElementById(
+        'bossResultsToggle'
+      );
+
+    currentBossResults =
+      Array.isArray(results)
+        ? results
+        : [];
+
+    currentBossResultsShowBossColumn =
+      showBossColumn === true;
+
+    currentBossResultsCode =
+      bossCode || currentBossCode;
+
+    const expanded =
+      bossResultsExpandedByBoss[
+        currentBossResultsCode
+      ] === true;
+
+    const visibleResults =
+      expanded
+        ? currentBossResults
+        : currentBossResults.slice(0, 10);
+
     if (table) {
       table.classList.toggle(
         'show-all-boss',
-        showBossColumn === true
+        currentBossResultsShowBossColumn
       );
     }
 
     body.innerHTML = '';
 
-    if (!results.length) {
+    if (!currentBossResults.length) {
+      if (toggle) {
+        toggle.classList.add('hidden');
+      }
+
       showBossTableMessage(
         'No results recorded.'
       );
@@ -1296,7 +1469,7 @@
       return;
     }
 
-    results.forEach(function(result) {
+    visibleResults.forEach(function(result) {
       const row =
         document.createElement('tr');
 
@@ -1342,8 +1515,44 @@
 
       body.appendChild(row);
     });
+
+    if (toggle) {
+      if (currentBossResults.length <= 10) {
+        toggle.classList.add('hidden');
+      } else {
+        toggle.classList.remove('hidden');
+
+        toggle.textContent =
+          expanded
+            ? 'Show latest 10'
+            : (
+                'Show all ' +
+                currentBossResults.length +
+                ' results'
+              );
+      }
+    }
   }
 
+
+  function toggleBossResultsExpansion() {
+    if (!currentBossResults.length) {
+      return;
+    }
+
+    bossResultsExpandedByBoss[
+      currentBossResultsCode
+    ] =
+      !bossResultsExpandedByBoss[
+        currentBossResultsCode
+      ];
+
+    renderBossResultsTable(
+      currentBossResults,
+      currentBossResultsShowBossColumn,
+      currentBossResultsCode
+    );
+  }
 
 
   function renderBossComparison(items) {
@@ -1836,42 +2045,7 @@
 
 
   function renderProgressPage(data) {
-    renderSimpleChart({
-      svgId: 'powerProgressChart',
-      values: data.power,
-      colour: '#ffab45',
-      width: 700,
-      height: 260,
-      formatter: formatPower
-    });
-
-    renderSimpleChart({
-      svgId: 'dprProgressChart',
-      values: data.dpr,
-      colour: '#4da3ff',
-      width: 700,
-      height: 260,
-      formatter: formatDpr
-    });
-
-    renderSimpleChart({
-      svgId: 'damageProgressChart',
-      values: data.damage,
-      colour: '#ff5a66',
-      width: 700,
-      height: 260,
-      formatter: formatDamage
-    });
-
-    renderSimpleChart({
-      svgId: 'rankProgressChart',
-      values: data.dprRank,
-      colour: '#ff70d7',
-      width: 700,
-      height: 260,
-      formatter: formatAverageRank,
-      lowerIsBetter: true
-    });
+    renderSelectedProgressChart(data);
 
     renderMilestones(
       data.milestones || {}
@@ -1882,6 +2056,111 @@
     );
   }
 
+
+  function setProgressMetric(metric) {
+    const allowed = [
+      'power',
+      'dpr',
+      'damage',
+      'rank'
+    ];
+
+    activeProgressMetric =
+      allowed.indexOf(metric) >= 0
+        ? metric
+        : 'power';
+
+    document
+      .querySelectorAll(
+        '.progress-chart-tab'
+      )
+      .forEach(function(button) {
+        const selected =
+          button.dataset.progressMetric ===
+          activeProgressMetric;
+
+        button.classList.toggle(
+          'active',
+          selected
+        );
+
+        button.setAttribute(
+          'aria-selected',
+          selected ? 'true' : 'false'
+        );
+      });
+
+    if (progressData) {
+      renderSelectedProgressChart(
+        progressData
+      );
+    }
+  }
+
+
+  function renderSelectedProgressChart(data) {
+    const configurations = {
+      power: {
+        values: data.power,
+        colour: '#ffab45',
+        eyebrow: 'Power progression',
+        title: 'Weekly ending power',
+        formatter: formatPower
+      },
+
+      dpr: {
+        values: data.dpr,
+        colour: '#4da3ff',
+        eyebrow: 'DPR progression',
+        title: 'Weekly average DPR',
+        formatter: formatDpr
+      },
+
+      damage: {
+        values: data.damage,
+        colour: '#ff5a66',
+        eyebrow: 'Damage progression',
+        title: 'Weekly average damage',
+        formatter: formatDamage
+      },
+
+      rank: {
+        values: data.dprRank,
+        colour: '#ff70d7',
+        eyebrow: 'DPR rank progression',
+        title: 'Weekly average guild rank',
+        formatter: formatAverageRank,
+        lowerIsBetter: true
+      }
+    };
+
+    const config =
+      configurations[
+        activeProgressMetric
+      ] ||
+      configurations.power;
+
+    setText(
+      'progressChartEyebrow',
+      config.eyebrow
+    );
+
+    setText(
+      'progressChartTitle',
+      config.title
+    );
+
+    renderSimpleChart({
+      svgId: 'progressChart',
+      values: config.values,
+      colour: config.colour,
+      width: 700,
+      height: 260,
+      formatter: config.formatter,
+      lowerIsBetter:
+        config.lowerIsBetter === true
+    });
+  }
 
   function renderSimpleChart(options) {
     const svg =
@@ -2591,6 +2870,19 @@
     list.className =
       'milestone-checklist-list';
 
+    (
+      data.checklists &&
+      data.checklists.classes
+        ? data.checklists.classes
+            .slice()
+            .reverse()
+        : []
+    ).forEach(function(item) {
+      list.appendChild(
+        createChecklistRow(item)
+      );
+    });
+
     if (
       data.checklists &&
       data.checklists.pbCycle
@@ -2601,17 +2893,6 @@
         )
       );
     }
-
-    (
-      data.checklists &&
-      data.checklists.classes
-        ? data.checklists.classes
-        : []
-    ).forEach(function(item) {
-      list.appendChild(
-        createChecklistRow(item)
-      );
-    });
 
     checklist.appendChild(list);
     container.appendChild(checklist);
@@ -2639,7 +2920,10 @@
 
     track.className = 'milestone-track';
 
-    items.forEach(function(item) {
+    items
+      .slice()
+      .reverse()
+      .forEach(function(item) {
       const node =
         document.createElement('div');
 
@@ -3579,33 +3863,8 @@
 
 
   function refreshCurrentView() {
-    if (currentView === 'bosses') {
-      delete bossPageCache[
-        currentBossCode
-      ];
-
-      loadBossPage(
-        currentBossCode
-      );
-
-      return;
-    }
-
-    if (currentView === 'progress') {
-      progressData = null;
-      loadProgressPage(true);
-      return;
-    }
-
-    if (currentView === 'records') {
-      recordsData = null;
-      loadRecordsPage(true);
-      return;
-    }
-
-    loadHomePage();
+    loadInitialAppData(true);
   }
-
 
   function scrollPageToTop() {
     window.scrollTo({
