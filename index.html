@@ -148,16 +148,30 @@
                 class="performance-grid"
               ></div>
 
-              <details class="attempt-details">
-                <summary>
+              <div class="attempt-details">
+                <button
+                  id="lastFourAttemptsToggle"
+                  class="inline-drawer-toggle attempt-details-toggle"
+                  type="button"
+                  aria-expanded="false"
+                  onclick="toggleLastFourAttempts()"
+                >
                   View last four attempts
-                </summary>
+                </button>
 
                 <div
-                  id="lastFourAttempts"
-                  class="attempt-list"
-                ></div>
-              </details>
+                  id="lastFourAttemptsDrawer"
+                  class="drawer-collapse"
+                  aria-hidden="true"
+                >
+                  <div class="drawer-collapse-inner">
+                    <div
+                      id="lastFourAttempts"
+                      class="attempt-list"
+                    ></div>
+                  </div>
+                </div>
+              </div>
             </section>
           </div>
 
@@ -454,16 +468,17 @@
                 </tr>
               </tbody>
             </table>
-          </div>
 
-          <button
-            id="bossResultsToggle"
-            class="boss-results-toggle hidden"
-            type="button"
-            onclick="toggleBossResultsExpansion()"
-          >
-            Show all results
-          </button>
+            <button
+              id="bossResultsToggle"
+              class="inline-drawer-toggle boss-results-toggle hidden"
+              type="button"
+              aria-expanded="false"
+              onclick="toggleBossResultsExpansion()"
+            >
+              Show all results
+            </button>
+          </div>
         </section>
 
         <section class="boss-comparison-section">
@@ -722,11 +737,23 @@
       id="streakModal"
       class="streak-modal hidden"
       role="dialog"
+      aria-hidden="true"
       aria-modal="true"
       aria-labelledby="streakModalTitle"
       onclick="handleStreakModalBackdrop(event)"
     >
-      <div class="streak-modal-panel">
+      <div
+        id="streakModalPanel"
+        class="streak-modal-panel"
+      >
+        <div
+          id="streakModalDragHandle"
+          class="streak-modal-drag-handle"
+          aria-hidden="true"
+        >
+          <span></span>
+        </div>
+
         <div class="streak-modal-header">
           <div>
             <p

@@ -149,73 +149,73 @@
     ALL: {
       code: 'ALL',
       name: 'All Bosses',
-      accent: '#8d63ff',
-      soft: 'rgba(141, 99, 255, 0.18)',
-      glow: 'rgba(141, 99, 255, 0.32)',
-      surface: 'rgba(141, 99, 255, 0.09)'
+      accent: '#a477ff',
+      soft: 'rgba(164, 119, 255, 0.21)',
+      glow: 'rgba(164, 119, 255, 0.40)',
+      surface: 'rgba(164, 119, 255, 0.115)'
     },
 
     TK: {
       code: 'TK',
       name: 'Tomb Keeper',
-      accent: '#419cff',
-      soft: 'rgba(65, 156, 255, 0.17)',
-      glow: 'rgba(65, 156, 255, 0.30)',
-      surface: 'rgba(65, 156, 255, 0.085)'
+      accent: '#48aaff',
+      soft: 'rgba(72, 170, 255, 0.20)',
+      glow: 'rgba(72, 170, 255, 0.40)',
+      surface: 'rgba(72, 170, 255, 0.11)'
     },
 
     FD: {
       code: 'FD',
       name: 'Flame Dragon',
-      accent: '#ff5364',
-      soft: 'rgba(255, 83, 100, 0.17)',
-      glow: 'rgba(255, 70, 86, 0.30)',
-      surface: 'rgba(255, 70, 86, 0.085)'
+      accent: '#ff5268',
+      soft: 'rgba(255, 82, 104, 0.20)',
+      glow: 'rgba(255, 72, 96, 0.40)',
+      surface: 'rgba(255, 72, 96, 0.11)'
     },
 
     FDe: {
       code: 'FDe',
       name: 'Flame Demon',
-      accent: '#ff9d42',
-      soft: 'rgba(255, 157, 66, 0.17)',
-      glow: 'rgba(255, 139, 47, 0.30)',
-      surface: 'rgba(255, 139, 47, 0.085)'
+      accent: '#ffa13d',
+      soft: 'rgba(255, 161, 61, 0.20)',
+      glow: 'rgba(255, 146, 47, 0.40)',
+      surface: 'rgba(255, 146, 47, 0.11)'
     },
 
     Snek: {
       code: 'Snek',
       name: 'Snake',
-      accent: '#58d47e',
-      soft: 'rgba(88, 212, 126, 0.17)',
-      glow: 'rgba(70, 205, 111, 0.30)',
-      surface: 'rgba(70, 205, 111, 0.085)'
+      accent: '#55e586',
+      soft: 'rgba(85, 229, 134, 0.20)',
+      glow: 'rgba(74, 222, 128, 0.40)',
+      surface: 'rgba(74, 222, 128, 0.11)'
     },
 
     SG: {
       code: 'SG',
       name: 'Stone Golem',
-      accent: '#aeb3bf',
-      soft: 'rgba(174, 179, 191, 0.17)',
-      glow: 'rgba(157, 163, 177, 0.28)',
-      surface: 'rgba(157, 163, 177, 0.08)'
+      accent: '#c2c8d4',
+      soft: 'rgba(194, 200, 212, 0.20)',
+      glow: 'rgba(185, 193, 208, 0.36)',
+      surface: 'rgba(185, 193, 208, 0.105)'
     },
 
     CM: {
       code: 'CM',
       name: 'Cyclops Mage',
-      accent: '#ff70d7',
-      soft: 'rgba(255, 112, 215, 0.17)',
-      glow: 'rgba(255, 83, 207, 0.30)',
-      surface: 'rgba(255, 83, 207, 0.085)'
+      accent: '#ff66df',
+      soft: 'rgba(255, 102, 223, 0.20)',
+      glow: 'rgba(255, 86, 214, 0.40)',
+      surface: 'rgba(255, 86, 214, 0.11)'
     },
 
     SM: {
       code: 'SM',
       name: 'Scythe Mage',
-      accent: '#9b6cff',
-      soft: 'rgba(155, 108, 255, 0.17)',
-      glow: 'rgba(137, 85, 255, 0.30)',
-      surface: 'rgba(137, 85, 255, 0.085)'
+      accent: '#a878ff',
+      soft: 'rgba(168, 120, 255, 0.20)',
+      glow: 'rgba(151, 98, 255, 0.40)',
+      surface: 'rgba(151, 98, 255, 0.11)'
     }
   };
 
@@ -238,6 +238,17 @@
   let activeHomeBossCode = 'TK';
   let bossCarouselFrame = null;
 
+  let themeAnimationFrame = null;
+  let currentThemeValues = {
+    accent: '#8d63ff',
+    soft: 'rgba(141, 99, 255, 0.16)',
+    glow: 'rgba(141, 99, 255, 0.17)',
+    surface: 'rgba(141, 99, 255, 0.055)'
+  };
+
+  let streakModalHideTimer = null;
+  let streakSheetDragState = null;
+
   document.addEventListener(
     'DOMContentLoaded',
     initialiseApp
@@ -246,6 +257,7 @@
 
   function initialiseApp() {
     registerServiceWorker();
+    initialiseStreakBottomSheet();
 
     document
       .getElementById('bossSelect')
@@ -759,7 +771,54 @@
     }
 
     carousel.scrollLeft = 0;
-    updateHomeBossCarouselState(0);
+    updateHomeBossCarouselState(0, 0);
+  }
+
+
+  function toggleLastFourAttempts() {
+    const drawer =
+      document.getElementById(
+        'lastFourAttemptsDrawer'
+      );
+
+    const toggle =
+      document.getElementById(
+        'lastFourAttemptsToggle'
+      );
+
+    if (!drawer || !toggle) {
+      return;
+    }
+
+    const opening =
+      !drawer.classList.contains(
+        'is-open'
+      );
+
+    drawer.classList.toggle(
+      'is-open',
+      opening
+    );
+
+    drawer.setAttribute(
+      'aria-hidden',
+      opening ? 'false' : 'true'
+    );
+
+    toggle.classList.toggle(
+      'is-open',
+      opening
+    );
+
+    toggle.setAttribute(
+      'aria-expanded',
+      opening ? 'true' : 'false'
+    );
+
+    toggle.textContent =
+      opening
+        ? 'Hide last four attempts'
+        : 'View last four attempts';
   }
 
 
@@ -785,27 +844,34 @@
           const width =
             carousel.clientWidth || 1;
 
-          const index =
+          const progress =
             Math.max(
               0,
               Math.min(
                 1,
-                Math.round(
-                  carousel.scrollLeft /
-                  width
-                )
+                carousel.scrollLeft /
+                width
               )
             );
 
+          const index =
+            progress >= 0.5
+              ? 1
+              : 0;
+
           updateHomeBossCarouselState(
-            index
+            index,
+            progress
           );
         }
       );
   }
 
 
-  function updateHomeBossCarouselState(index) {
+  function updateHomeBossCarouselState(
+    index,
+    progress
+  ) {
     const todayDot =
       document.getElementById(
         'todayCarouselDot'
@@ -834,24 +900,39 @@
       return;
     }
 
-    const code =
-      index === 1 &&
-      homepageData.yesterday
+    const todayCode =
+      homepageData.identity &&
+      homepageData.identity.todaysBossCode
+        ? homepageData.identity.todaysBossCode
+        : 'TK';
+
+    const yesterdayCode =
+      homepageData.yesterday &&
+      homepageData.yesterday.code
         ? homepageData.yesterday.code
-        : homepageData
-            .identity
-            .todaysBossCode;
+        : todayCode;
+
+    const blendAmount =
+      Number.isFinite(progress)
+        ? Math.max(
+            0,
+            Math.min(1, progress)
+          )
+        : index;
 
     activeHomeBossCode =
-      code || 'TK';
+      blendAmount >= 0.5
+        ? yesterdayCode
+        : todayCode;
 
     if (currentView === 'home') {
-      applyBossTheme(
-        activeHomeBossCode
+      applyBossThemeBlend(
+        todayCode,
+        yesterdayCode,
+        blendAmount
       );
     }
   }
-
 
   function showBossCodeFallback(
     image,
@@ -1519,8 +1600,23 @@
     if (toggle) {
       if (currentBossResults.length <= 10) {
         toggle.classList.add('hidden');
+        toggle.classList.remove('is-open');
+        toggle.setAttribute(
+          'aria-expanded',
+          'false'
+        );
       } else {
         toggle.classList.remove('hidden');
+
+        toggle.classList.toggle(
+          'is-open',
+          expanded
+        );
+
+        toggle.setAttribute(
+          'aria-expanded',
+          expanded ? 'true' : 'false'
+        );
 
         toggle.textContent =
           expanded
@@ -1540,6 +1636,16 @@
       return;
     }
 
+    const card =
+      document.querySelector(
+        '.boss-table-card'
+      );
+
+    const startHeight =
+      card
+        ? card.getBoundingClientRect().height
+        : 0;
+
     bossResultsExpandedByBoss[
       currentBossResultsCode
     ] =
@@ -1552,6 +1658,63 @@
       currentBossResultsShowBossColumn,
       currentBossResultsCode
     );
+
+    if (
+      !card ||
+      prefersReducedMotion()
+    ) {
+      return;
+    }
+
+    const endHeight =
+      card.getBoundingClientRect().height;
+
+    if (
+      !Number.isFinite(startHeight) ||
+      !Number.isFinite(endHeight) ||
+      Math.abs(endHeight - startHeight) < 2
+    ) {
+      return;
+    }
+
+    card.style.height =
+      startHeight + 'px';
+
+    card.style.overflow =
+      'hidden';
+
+    card.getBoundingClientRect();
+
+    const animation =
+      card.animate(
+        [
+          {
+            height:
+              startHeight + 'px'
+          },
+          {
+            height:
+              endHeight + 'px'
+          }
+        ],
+        {
+          duration: 420,
+          easing:
+            'cubic-bezier(0.22, 1, 0.36, 1)'
+        }
+      );
+
+    animation.onfinish =
+      function() {
+        card.style.height = '';
+        card.style.overflow = '';
+      };
+
+    animation.oncancel =
+      function() {
+        card.style.height = '';
+        card.style.overflow = '';
+      };
   }
 
 
@@ -2499,6 +2662,11 @@
           );
 
         svg.appendChild(averageLine);
+
+        animateChartStroke(
+          averageLine,
+          70
+        );
       }
 
       const firstAveragePoint =
@@ -2557,6 +2725,11 @@
       );
 
     svg.appendChild(line);
+
+    animateChartStroke(
+      line,
+      compact ? 0 : 20
+    );
 
     const highlightValue =
       lowerIsBetter
@@ -2736,6 +2909,82 @@
         );
       }
     }
+  }
+
+
+  function animateChartStroke(
+    element,
+    delay
+  ) {
+    if (
+      !element ||
+      prefersReducedMotion() ||
+      typeof element.getTotalLength !==
+        'function'
+    ) {
+      return;
+    }
+
+    requestAnimationFrame(
+      function() {
+        let length = 0;
+
+        try {
+          length =
+            element.getTotalLength();
+        } catch (error) {
+          return;
+        }
+
+        if (
+          !Number.isFinite(length) ||
+          length <= 0
+        ) {
+          return;
+        }
+
+        element.style.strokeDasharray =
+          length + ' ' + length;
+
+        element.style.strokeDashoffset =
+          String(length);
+
+        const animation =
+          element.animate(
+            [
+              {
+                strokeDashoffset:
+                  String(length)
+              },
+              {
+                strokeDashoffset: '0'
+              }
+            ],
+            {
+              duration: 760,
+              delay:
+                Number.isFinite(delay)
+                  ? delay
+                  : 0,
+              easing:
+                'cubic-bezier(0.22, 1, 0.36, 1)',
+              fill: 'forwards'
+            }
+          );
+
+        animation.onfinish =
+          function() {
+            element.style.strokeDasharray = '';
+            element.style.strokeDashoffset = '';
+          };
+
+        animation.oncancel =
+          function() {
+            element.style.strokeDasharray = '';
+            element.style.strokeDashoffset = '';
+          };
+      }
+    );
   }
 
 
@@ -3622,6 +3871,200 @@
   }
 
 
+  function initialiseStreakBottomSheet() {
+    const modal =
+      document.getElementById(
+        'streakModal'
+      );
+
+    const panel =
+      document.getElementById(
+        'streakModalPanel'
+      );
+
+    const handle =
+      document.getElementById(
+        'streakModalDragHandle'
+      );
+
+    const header =
+      modal
+        ? modal.querySelector(
+            '.streak-modal-header'
+          )
+        : null;
+
+    if (!modal || !panel) {
+      return;
+    }
+
+    const beginDrag =
+      function(event) {
+        if (
+          event.pointerType === 'mouse' &&
+          event.button !== 0
+        ) {
+          return;
+        }
+
+        if (
+          event.target &&
+          event.target.closest &&
+          event.target.closest(
+            '.streak-modal-close'
+          )
+        ) {
+          return;
+        }
+
+        streakSheetDragState = {
+          pointerId: event.pointerId,
+          startY: event.clientY,
+          currentY: event.clientY,
+          startTime:
+            performance.now()
+        };
+
+        panel.classList.add(
+          'is-dragging'
+        );
+
+        try {
+          panel.setPointerCapture(
+            event.pointerId
+          );
+        } catch (error) {
+          // Pointer capture is optional.
+        }
+      };
+
+    const moveDrag =
+      function(event) {
+        if (
+          !streakSheetDragState ||
+          event.pointerId !==
+            streakSheetDragState.pointerId
+        ) {
+          return;
+        }
+
+        const delta =
+          Math.max(
+            0,
+            event.clientY -
+            streakSheetDragState.startY
+          );
+
+        streakSheetDragState.currentY =
+          event.clientY;
+
+        panel.style.setProperty(
+          '--sheet-drag-y',
+          delta + 'px'
+        );
+
+        modal.style.setProperty(
+          '--sheet-backdrop-alpha',
+          String(
+            0.68 *
+            Math.max(
+              0,
+              1 -
+              delta /
+              Math.max(
+                panel.offsetHeight,
+                1
+              )
+            )
+          )
+        );
+      };
+
+    const endDrag =
+      function(event) {
+        if (
+          !streakSheetDragState ||
+          event.pointerId !==
+            streakSheetDragState.pointerId
+        ) {
+          return;
+        }
+
+        const delta =
+          Math.max(
+            0,
+            streakSheetDragState.currentY -
+            streakSheetDragState.startY
+          );
+
+        const elapsed =
+          Math.max(
+            1,
+            performance.now() -
+            streakSheetDragState.startTime
+          );
+
+        const velocity =
+          delta / elapsed;
+
+        streakSheetDragState = null;
+
+        panel.classList.remove(
+          'is-dragging'
+        );
+
+        try {
+          panel.releasePointerCapture(
+            event.pointerId
+          );
+        } catch (error) {
+          // Pointer capture may already be released.
+        }
+
+        if (
+          delta > 90 ||
+          velocity > 0.65
+        ) {
+          closeStreakModal();
+          return;
+        }
+
+        panel.style.setProperty(
+          '--sheet-drag-y',
+          '0px'
+        );
+
+        modal.style.removeProperty(
+          '--sheet-backdrop-alpha'
+        );
+      };
+
+    [handle, header]
+      .filter(Boolean)
+      .forEach(function(target) {
+        target.addEventListener(
+          'pointerdown',
+          beginDrag
+        );
+      });
+
+    panel.addEventListener(
+      'pointermove',
+      moveDrag
+    );
+
+    panel.addEventListener(
+      'pointerup',
+      endDrag
+    );
+
+    panel.addEventListener(
+      'pointercancel',
+      endDrag
+    );
+  }
+
+
   function openStreakModal(
     metric,
     detailLabel,
@@ -3630,6 +4073,11 @@
     const modal =
       document.getElementById(
         'streakModal'
+      );
+
+    const panel =
+      document.getElementById(
+        'streakModalPanel'
       );
 
     const title =
@@ -3683,9 +4131,49 @@
       container.appendChild(row);
     });
 
+    if (streakModalHideTimer !== null) {
+      window.clearTimeout(
+        streakModalHideTimer
+      );
+
+      streakModalHideTimer = null;
+    }
+
+    if (panel) {
+      panel.style.setProperty(
+        '--sheet-drag-y',
+        '0px'
+      );
+
+      panel.classList.remove(
+        'is-dragging'
+      );
+    }
+
+    modal.style.removeProperty(
+      '--sheet-backdrop-alpha'
+    );
+
     modal.classList.remove('hidden');
+    modal.setAttribute(
+      'aria-hidden',
+      'false'
+    );
+
     document.body.classList.add(
       'modal-open'
+    );
+
+    requestAnimationFrame(
+      function() {
+        requestAnimationFrame(
+          function() {
+            modal.classList.add(
+              'is-open'
+            );
+          }
+        );
+      }
     );
   }
 
@@ -3696,14 +4184,79 @@
         'streakModal'
       );
 
-    if (!modal) {
+    const panel =
+      document.getElementById(
+        'streakModalPanel'
+      );
+
+    if (
+      !modal ||
+      modal.classList.contains('hidden')
+    ) {
       return;
     }
 
-    modal.classList.add('hidden');
-    document.body.classList.remove(
-      'modal-open'
+    streakSheetDragState = null;
+
+    if (panel) {
+      panel.classList.remove(
+        'is-dragging'
+      );
+
+      panel.style.setProperty(
+        '--sheet-drag-y',
+        '0px'
+      );
+    }
+
+    modal.classList.remove(
+      'is-open'
     );
+
+    modal.style.removeProperty(
+      '--sheet-backdrop-alpha'
+    );
+
+    if (prefersReducedMotion()) {
+      modal.classList.add('hidden');
+      modal.setAttribute(
+        'aria-hidden',
+        'true'
+      );
+
+      document.body.classList.remove(
+        'modal-open'
+      );
+
+      return;
+    }
+
+    if (streakModalHideTimer !== null) {
+      window.clearTimeout(
+        streakModalHideTimer
+      );
+    }
+
+    streakModalHideTimer =
+      window.setTimeout(
+        function() {
+          modal.classList.add(
+            'hidden'
+          );
+
+          modal.setAttribute(
+            'aria-hidden',
+            'true'
+          );
+
+          document.body.classList.remove(
+            'modal-open'
+          );
+
+          streakModalHideTimer = null;
+        },
+        360
+      );
   }
 
 
@@ -3715,7 +4268,6 @@
       closeStreakModal();
     }
   }
-
 
   /**
    * ==========================================================
@@ -3942,8 +4494,202 @@
       BOSS_META[code] ||
       BOSS_META.SM;
 
+    animateThemeTo(
+      theme,
+      460
+    );
+  }
+
+
+  function applyBossThemeBlend(
+    fromCode,
+    toCode,
+    amount
+  ) {
+    const fromTheme =
+      BOSS_META[fromCode] ||
+      BOSS_META.SM;
+
+    const toTheme =
+      BOSS_META[toCode] ||
+      fromTheme;
+
+    const progress =
+      Math.max(
+        0,
+        Math.min(
+          1,
+          Number.isFinite(amount)
+            ? amount
+            : 0
+        )
+      );
+
+    cancelThemeAnimation();
+
+    setThemeValues({
+      accent:
+        mixCssColour(
+          fromTheme.accent,
+          toTheme.accent,
+          progress
+        ),
+      soft:
+        mixCssColour(
+          fromTheme.soft,
+          toTheme.soft,
+          progress
+        ),
+      glow:
+        mixCssColour(
+          fromTheme.glow,
+          toTheme.glow,
+          progress
+        ),
+      surface:
+        mixCssColour(
+          fromTheme.surface,
+          toTheme.surface,
+          progress
+        )
+    });
+  }
+
+
+  function applyNeutralTheme() {
+    animateThemeTo(
+      {
+        accent: '#8d63ff',
+        soft: 'rgba(141, 99, 255, 0.16)',
+        glow: 'rgba(141, 99, 255, 0.17)',
+        surface:
+          'rgba(141, 99, 255, 0.055)'
+      },
+      360
+    );
+  }
+
+
+  function animateThemeTo(
+    targetTheme,
+    duration
+  ) {
+    if (!targetTheme) {
+      return;
+    }
+
+    cancelThemeAnimation();
+
+    if (prefersReducedMotion()) {
+      setThemeValues(targetTheme);
+      return;
+    }
+
+    const startTheme = {
+      accent:
+        currentThemeValues.accent,
+      soft:
+        currentThemeValues.soft,
+      glow:
+        currentThemeValues.glow,
+      surface:
+        currentThemeValues.surface
+    };
+
+    const totalDuration =
+      Number.isFinite(duration)
+        ? duration
+        : 420;
+
+    const startTime =
+      performance.now();
+
+    const step =
+      function(now) {
+        const rawProgress =
+          Math.max(
+            0,
+            Math.min(
+              1,
+              (
+                now - startTime
+              ) /
+              totalDuration
+            )
+          );
+
+        const eased =
+          1 -
+          Math.pow(
+            1 - rawProgress,
+            3
+          );
+
+        setThemeValues({
+          accent:
+            mixCssColour(
+              startTheme.accent,
+              targetTheme.accent,
+              eased
+            ),
+          soft:
+            mixCssColour(
+              startTheme.soft,
+              targetTheme.soft,
+              eased
+            ),
+          glow:
+            mixCssColour(
+              startTheme.glow,
+              targetTheme.glow,
+              eased
+            ),
+          surface:
+            mixCssColour(
+              startTheme.surface,
+              targetTheme.surface,
+              eased
+            )
+        });
+
+        if (rawProgress < 1) {
+          themeAnimationFrame =
+            requestAnimationFrame(step);
+        } else {
+          themeAnimationFrame = null;
+
+          setThemeValues(
+            targetTheme
+          );
+        }
+      };
+
+    themeAnimationFrame =
+      requestAnimationFrame(step);
+  }
+
+
+  function cancelThemeAnimation() {
+    if (themeAnimationFrame !== null) {
+      cancelAnimationFrame(
+        themeAnimationFrame
+      );
+
+      themeAnimationFrame = null;
+    }
+  }
+
+
+  function setThemeValues(theme) {
     const root =
       document.documentElement;
+
+    currentThemeValues = {
+      accent: theme.accent,
+      soft: theme.soft,
+      glow: theme.glow,
+      surface: theme.surface
+    };
 
     root.style.setProperty(
       '--accent',
@@ -3967,31 +4713,100 @@
   }
 
 
-  function applyNeutralTheme() {
-    const root =
-      document.documentElement;
+  function mixCssColour(
+    fromColour,
+    toColour,
+    amount
+  ) {
+    const from =
+      parseCssColour(fromColour);
 
-    root.style.setProperty(
-      '--accent',
-      '#8d63ff'
-    );
+    const to =
+      parseCssColour(toColour);
 
-    root.style.setProperty(
-      '--accent-soft',
-      'rgba(141, 99, 255, 0.16)'
-    );
+    if (!from || !to) {
+      return amount < 0.5
+        ? fromColour
+        : toColour;
+    }
 
-    root.style.setProperty(
-      '--boss-glow',
-      'rgba(141, 99, 255, 0.17)'
-    );
+    const mix =
+      function(start, end) {
+        return (
+          start +
+          (
+            end - start
+          ) *
+          amount
+        );
+      };
 
-    root.style.setProperty(
-      '--boss-surface',
-      'rgba(141, 99, 255, 0.055)'
+    return (
+      'rgba(' +
+      Math.round(mix(from.r, to.r)) +
+      ', ' +
+      Math.round(mix(from.g, to.g)) +
+      ', ' +
+      Math.round(mix(from.b, to.b)) +
+      ', ' +
+      mix(from.a, to.a)
+        .toFixed(4) +
+      ')'
     );
   }
 
+
+  function parseCssColour(value) {
+    const text =
+      String(value || '')
+        .trim();
+
+    const hex =
+      text.match(
+        /^#([0-9a-f]{6})$/i
+      );
+
+    if (hex) {
+      const number =
+        parseInt(hex[1], 16);
+
+      return {
+        r: (number >> 16) & 255,
+        g: (number >> 8) & 255,
+        b: number & 255,
+        a: 1
+      };
+    }
+
+    const rgba =
+      text.match(
+        /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/i
+      );
+
+    if (!rgba) {
+      return null;
+    }
+
+    return {
+      r: Number(rgba[1]),
+      g: Number(rgba[2]),
+      b: Number(rgba[3]),
+      a:
+        rgba[4] === undefined
+          ? 1
+          : Number(rgba[4])
+    };
+  }
+
+
+  function prefersReducedMotion() {
+    return (
+      window.matchMedia &&
+      window.matchMedia(
+        '(prefers-reduced-motion: reduce)'
+      ).matches
+    );
+  }
 
   /**
    * ==========================================================

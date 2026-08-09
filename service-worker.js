@@ -1,4 +1,4 @@
-const CACHE_NAME = 'elidir-stats-shell-v2';
+const CACHE_NAME = 'elidir-stats-shell-v3';
 
 const CORE_FILES = [
   './',
