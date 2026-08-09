@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link
+    rel="preconnect"
+    href="https://fonts.googleapis.com"
+  >
+
+  <link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+  >
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div id="loadingScreen" class="loading-screen">
+    <div class="spinner"></div>
+    <p>Loading your stats…</p>
+  </div>
+
+  <div id="errorScreen" class="error-screen hidden">
+    <h2>Could not load your stats</h2>
+    <p id="errorMessage"></p>
+
+    <button
+      type="button"
+      onclick="refreshCurrentView()"
+    >
+      Try again
+    </button>
+  </div>
+
+  <div id="app" class="app hidden">
+    <header class="app-header">
+      <div>
+        <p
+          class="eyebrow"
+          id="guildName"
+        ></p>
+
+        <h1 id="playerName"></h1>
+      </div>
+
+      <button
+        class="refresh-button"
+        type="button"
+        aria-label="Refresh data"
+        onclick="refreshCurrentView()"
+      >
+        ↻
+      </button>
+    </header>
+
+    <p
+      class="updated-text"
+      id="updatedText"
+    ></p>
+
+    <main>
+      <!-- HOME -->
+
+      <div id="homeView" class="page-view">
+        <div
+          id="homeBossCarousel"
+          class="home-boss-carousel"
+          aria-label="Today and yesterday boss cards"
+        >
+          <div
+            class="home-boss-slide"
+            data-boss-slide="today"
+          >
+            <section class="card today-card boss-swipe-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">
+                    Today’s boss
+                  </p>
+
+                  <h2 id="todayBossName"></h2>
+                </div>
+
+                <div class="today-boss-visual">
+                  <img
+                    id="todayBossImage"
+                    class="today-boss-image hidden"
+                    alt=""
+                  >
+
+                  <div
+                    id="todayBossFallback"
+                    class="today-boss-code hidden"
+                  ></div>
+                </div>
+              </div>
+
+              <div
+                id="bossPerformanceGrid"
+                class="performance-grid"
+              ></div>
+
+              <details class="attempt-details">
+                <summary>
+                  View last four attempts
+                </summary>
+
+                <div
+                  id="lastFourAttempts"
+                  class="attempt-list"
+                ></div>
+              </details>
+            </section>
+          </div>
+
+          <div
+            class="home-boss-slide"
+            data-boss-slide="yesterday"
+          >
+            <section class="card today-card yesterday-card boss-swipe-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">
+                    Yesterday’s boss
+                  </p>
+
+                  <h2 id="yesterdayBossName">—</h2>
+
+                  <p
+                    id="yesterdayBossDate"
+                    class="yesterday-boss-date"
+                  ></p>
+                </div>
+
+                <div
+                  id="yesterdayBossVisual"
+                  class="today-boss-visual"
+                ></div>
+              </div>
+
+              <div
+                id="yesterdayPerformanceGrid"
+                class="performance-grid yesterday-performance-grid"
+              ></div>
+            </section>
+          </div>
+        </div>
+
+        <div
+          class="boss-carousel-indicators"
+          aria-hidden="true"
+        >
+          <span
+            id="todayCarouselDot"
+            class="boss-carousel-dot active"
+          ></span>
+          <span
+            id="yesterdayCarouselDot"
+            class="boss-carousel-dot"
+          ></span>
+        </div>
+
+        <section class="section-block">
+          <div class="section-title-row">
+            <h2>DPR averages</h2>
+          </div>
+
+          <div
+            id="averagesGrid"
+            class="averages-grid"
+          ></div>
+        </section>
+
+        <section class="card history-card">
+          <div class="section-title-row">
+            <div>
+              <p class="eyebrow">
+                Performance history
+              </p>
+
+              <h2>Last 7 bosses</h2>
+            </div>
+          </div>
+
+          <div class="boss-history-layout">
+            <div class="axis-spacer"></div>
+
+            <div
+              id="bossSpriteRow"
+              class="boss-sprite-row"
+            ></div>
+          </div>
+
+          <div class="boss-history-layout">
+            <div class="axis-spacer"></div>
+
+            <div
+              id="bossDamageRow"
+              class="boss-damage-row"
+            ></div>
+          </div>
+
+          <div class="chart-layout">
+            <div
+              id="chartScale"
+              class="chart-scale"
+            ></div>
+
+            <div class="chart-area">
+              <svg
+                id="dprChart"
+                viewBox="0 0 700 220"
+                preserveAspectRatio="xMidYMid meet"
+                role="img"
+              ></svg>
+            </div>
+          </div>
+        </section>
+
+        <section class="section-block">
+          <div class="section-title-row">
+            <h2>Streaks</h2>
+          </div>
+
+          <div
+            id="streaksGrid"
+            class="streaks-grid"
+          ></div>
+        </section>
+
+        <section class="section-block">
+          <div class="section-title-row">
+            <h2>Personal records</h2>
+          </div>
+
+          <div
+            id="recordsGrid"
+            class="records-grid"
+          ></div>
+        </section>
+      </div>
+
+      <!-- BOSSES -->
+
+      <div
+        id="bossesView"
+        class="page-view hidden"
+      >
+        <section class="card boss-page-card">
+          <div class="boss-page-heading">
+            <div>
+              <p class="eyebrow">
+                Boss history
+              </p>
+
+              <select
+                id="bossSelect"
+                class="boss-select"
+                aria-label="Choose boss"
+              >
+                <option value="ALL">
+                  All Bosses
+                </option>
+
+                <option value="TK">
+                  Tomb Keeper
+                </option>
+
+                <option value="FD">
+                  Flame Dragon
+                </option>
+
+                <option value="FDe">
+                  Flame Demon
+                </option>
+
+                <option value="Snek">
+                  Snake
+                </option>
+
+                <option value="SG">
+                  Stone Golem
+                </option>
+
+                <option value="CM">
+                  Cyclops Mage
+                </option>
+
+                <option value="SM">
+                  Scythe Mage
+                </option>
+              </select>
+            </div>
+
+            <div
+              id="bossPageVisual"
+              class="boss-page-visual"
+            ></div>
+          </div>
+
+          <div class="boss-summary-grid">
+            <article class="boss-summary-tile">
+              <p class="tile-heading">
+                Attempts
+              </p>
+
+              <p
+                id="bossAttemptCount"
+                class="boss-summary-value"
+              >
+                —
+              </p>
+            </article>
+
+            <article class="boss-summary-tile">
+              <p class="tile-heading">
+                Best DPR
+              </p>
+
+              <p
+                id="bossBestDpr"
+                class="boss-summary-value"
+              >
+                —
+              </p>
+            </article>
+
+            <article class="boss-summary-tile">
+              <p class="tile-heading">
+                Best Damage
+              </p>
+
+              <p
+                id="bossBestDamage"
+                class="boss-summary-value"
+              >
+                —
+              </p>
+            </article>
+
+            <article class="boss-summary-tile">
+              <p class="tile-heading">
+                Avg DPR Rank
+              </p>
+
+              <p
+                id="bossAverageDprRank"
+                class="boss-summary-value"
+              >
+                —
+              </p>
+            </article>
+
+            <article class="boss-summary-tile">
+              <p class="tile-heading">
+                Last 4 DPR
+              </p>
+
+              <p
+                id="bossLastFourDpr"
+                class="boss-summary-value"
+              >
+                —
+              </p>
+            </article>
+
+            <article class="boss-summary-tile">
+              <p class="tile-heading">
+                Last 4 Damage
+              </p>
+
+              <p
+                id="bossLastFourDamage"
+                class="boss-summary-value"
+              >
+                —
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="boss-results-section">
+          <div class="section-title-row">
+            <h2>All results</h2>
+          </div>
+
+          <div class="boss-table-card">
+            <table class="boss-results-table">
+              <colgroup>
+                <col class="all-boss-only boss-code-column">
+                <col class="date-column">
+                <col class="value-column">
+                <col class="rank-column">
+                <col class="value-column">
+                <col class="rank-column">
+              </colgroup>
+
+              <thead>
+                <tr>
+                  <th class="all-boss-only">Boss</th>
+                  <th>Date</th>
+                  <th>Damage</th>
+                  <th>Rank</th>
+                  <th>DPR</th>
+                  <th>Rank</th>
+                </tr>
+              </thead>
+
+              <tbody id="bossResultsBody">
+                <tr>
+                  <td
+                    colspan="5"
+                    class="table-message"
+                  >
+                    Loading…
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="boss-comparison-section">
+          <div class="section-title-row">
+            <div>
+              <p class="eyebrow">
+                Across all bosses
+              </p>
+
+              <h2>Last 4 comparison</h2>
+            </div>
+          </div>
+
+          <div
+            id="bossComparisonTable"
+            class="boss-comparison-card"
+          ></div>
+        </section>
+
+        <section class="rank-matrix-section">
+          <div class="section-title-row">
+            <div>
+              <p class="eyebrow">
+                DPR guild positions
+              </p>
+
+              <h2>DPR Rank Matrix</h2>
+            </div>
+          </div>
+
+          <div
+            id="dprRankMatrix"
+            class="rank-matrix-card"
+          ></div>
+        </section>
+      </div>
+
+      <!-- PROGRESS -->
+
+      <div
+        id="progressView"
+        class="page-view hidden"
+      >
+        <section class="page-heading-block">
+          <p class="eyebrow">
+            Weekly history
+          </p>
+
+          <h2>Progress</h2>
+        </section>
+
+        <section class="card progress-chart-card">
+          <div class="progress-chart-heading">
+            <div>
+              <p class="tile-heading">
+                Power progression
+              </p>
+
+              <h2>Weekly ending power</h2>
+            </div>
+          </div>
+
+          <div class="progress-chart-container">
+            <svg
+              id="powerProgressChart"
+              class="progress-chart"
+              viewBox="0 0 700 260"
+              role="img"
+            ></svg>
+          </div>
+        </section>
+
+        <section class="card progress-chart-card">
+          <div class="progress-chart-heading">
+            <div>
+              <p class="tile-heading">
+                DPR progression
+              </p>
+
+              <h2>Weekly average DPR</h2>
+            </div>
+          </div>
+
+          <div class="progress-chart-container">
+            <svg
+              id="dprProgressChart"
+              class="progress-chart"
+              viewBox="0 0 700 260"
+              role="img"
+            ></svg>
+          </div>
+        </section>
+
+        <section class="card progress-chart-card">
+          <div class="progress-chart-heading">
+            <div>
+              <p class="tile-heading">
+                Damage progression
+              </p>
+
+              <h2>Weekly average damage</h2>
+            </div>
+          </div>
+
+          <div class="progress-chart-container">
+            <svg
+              id="damageProgressChart"
+              class="progress-chart"
+              viewBox="0 0 700 260"
+              role="img"
+            ></svg>
+          </div>
+        </section>
+
+        <section class="card progress-chart-card">
+          <div class="progress-chart-heading">
+            <div>
+              <p class="tile-heading">
+                DPR rank progression
+              </p>
+
+              <h2>Weekly average guild rank</h2>
+            </div>
+          </div>
+
+          <div class="progress-chart-container">
+            <svg
+              id="rankProgressChart"
+              class="progress-chart"
+              viewBox="0 0 700 260"
+              role="img"
+            ></svg>
+          </div>
+        </section>
+
+        <section class="progress-feature-section">
+          <div class="section-title-row">
+            <div>
+              <p class="eyebrow">
+                Career progression
+              </p>
+
+              <h2>Milestones</h2>
+            </div>
+          </div>
+
+          <div
+            id="milestonesContainer"
+            class="milestones-container"
+          ></div>
+        </section>
+
+        <section class="progress-feature-section class-distribution-section">
+          <div class="section-title-row">
+            <div>
+              <p class="eyebrow">
+                All recorded results
+              </p>
+
+              <h2>Class distribution</h2>
+            </div>
+          </div>
+
+          <div
+            id="classDistribution"
+            class="class-distribution-card"
+          ></div>
+        </section>
+      </div>
+
+      <!-- RECORDS -->
+
+      <div
+        id="recordsView"
+        class="page-view hidden"
+      >
+        <section class="page-heading-block">
+          <p class="eyebrow">
+            Career highlights
+          </p>
+
+          <h2>Personal records</h2>
+        </section>
+
+        <section class="records-section">
+          <div
+            id="recordLeaderboards"
+            class="record-leaderboards"
+          ></div>
+        </section>
+
+        <section class="records-section">
+          <div class="section-title-row">
+            <h2>Guild finishes</h2>
+          </div>
+
+          <div
+            id="recordFinishGrid"
+            class="record-stat-grid"
+          ></div>
+        </section>
+
+        <section class="records-section">
+          <div class="section-title-row">
+            <h2>DPR result counts</h2>
+          </div>
+
+          <div
+            id="recordThresholdGrid"
+            class="record-stat-grid"
+          ></div>
+        </section>
+
+        <section
+          id="recordRelativeGrid"
+          class="record-wide-grid"
+        ></section>
+
+        <section class="records-section">
+          <div class="section-title-row">
+            <h2>Personal-best gaps</h2>
+          </div>
+
+          <div
+            id="recordPbGrid"
+            class="record-stat-grid record-stat-grid-two"
+          ></div>
+        </section>
+
+        <section class="records-section">
+          <div class="section-title-row">
+            <div>
+              <p class="eyebrow">
+                Select current or best
+              </p>
+
+              <h2>Streak records</h2>
+            </div>
+          </div>
+
+          <div
+            id="recordStreaksGrid"
+            class="record-streaks-grid"
+          ></div>
+        </section>
+
+        <section class="records-section">
+          <div class="section-title-row">
+            <div>
+              <p class="eyebrow">
+                The important stuff
+              </p>
+
+              <h2>Weird records</h2>
+            </div>
+          </div>
+
+          <div
+            id="recordWeirdGrid"
+            class="record-stat-grid"
+          ></div>
+        </section>
+      </div>
+    </main>
+
+
+    <div
+      id="streakModal"
+      class="streak-modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="streakModalTitle"
+      onclick="handleStreakModalBackdrop(event)"
+    >
+      <div class="streak-modal-panel">
+        <div class="streak-modal-header">
+          <div>
+            <p
+              id="streakModalEyebrow"
+              class="eyebrow"
+            >Streak results</p>
+
+            <h2 id="streakModalTitle"></h2>
+          </div>
+
+          <button
+            type="button"
+            class="streak-modal-close"
+            aria-label="Close streak results"
+            onclick="closeStreakModal()"
+          >
+            ×
+          </button>
+        </div>
+
+        <div
+          id="streakModalResults"
+          class="streak-modal-results"
+        ></div>
+      </div>
+    </div>
+
+    <nav
+      class="bottom-nav"
+      aria-label="Main navigation"
+    >
+      <button
+        id="homeNavButton"
+        class="nav-item active"
+        type="button"
+        onclick="showHomeView()"
+      >
+        <span>⌂</span>
+        Home
+      </button>
+
+      <button
+        id="bossesNavButton"
+        class="nav-item"
+        type="button"
+        onclick="showBossesView()"
+      >
+        <span>◉</span>
+        Bosses
+      </button>
+
+      <button
+        id="progressNavButton"
+        class="nav-item"
+        type="button"
+        onclick="showProgressView()"
+      >
+        <span>↗</span>
+        Progress
+      </button>
+
+      <button
+        id="recordsNavButton"
+        class="nav-item"
+        type="button"
+        onclick="showRecordsView()"
+      >
+        <span>★</span>
+        Records
+      </button>
+    </nav>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
