@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+  <title>Archero API Test</title>
+
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #090a0f;
+      color: #f6f6fa;
+      font-family: Inter, system-ui, sans-serif;
+    }
+
+    main {
+      width: min(520px, calc(100% - 36px));
+      padding: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 22px;
+      background: #11131a;
+    }
+
+    h1 {
+      margin-top: 0;
+    }
+
+    #status {
+      color: #a3a6b6;
+      line-height: 1.6;
+    }
+
+    .success {
+      color: #57d18c !important;
+    }
+
+    .failure {
+      color: #ff6f82 !important;
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <h1>Archero API Test</h1>
+    <p id="status">
+      Contacting the Google Apps Script backend…
+    </p>
+  </main>
+
+  <script>
+    const API_URL =
+      'https://script.google.com/macros/s/AKfycbyDfL8jtnT0WnyGGC2-0LgCVL8k2NPzTqtGHi14lbDFKOxbuN7J45HAzKtHoutvVTx_DQ/exec';
+
+    function receiveArcheroTest(data) {
+      const status =
+        document.getElementById('status');
+
+      if (!data || !data.ok) {
+        status.className = 'failure';
+        status.textContent =
+          'The backend responded, but the test failed.';
+        return;
+      }
+
+      status.className = 'success';
+      status.innerHTML =
+        '<strong>Success.</strong><br>' +
+        'Player: ' + escapeText(data.player) + '<br>' +
+        'Guild: ' + escapeText(data.guild) + '<br>' +
+        'Latest logged date: ' +
+        escapeText(data.latestLoggedDate) + '<br>' +
+        'Spreadsheet data timestamp: ' +
+        escapeText(data.currentRunTimestamp);
+    }
+
+    function escapeText(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function startTest() {
+      const script =
+        document.createElement('script');
+
+      script.src =
+        API_URL +
+        '?api=ping' +
+        '&callback=receiveArcheroTest' +
+        '&cacheBust=' +
+        Date.now();
+
+      script.onerror = function() {
+        const status =
+          document.getElementById('status');
+
+        status.className = 'failure';
+        status.textContent =
+          'Could not reach the Apps Script backend.';
+      };
+
+      document.head.appendChild(script);
+    }
+
+    startTest();
+  </script>
+</body>
+</html>
