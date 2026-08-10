@@ -149,10 +149,10 @@
     ALL: {
       code: 'ALL',
       name: 'All Bosses',
-      accent: '#a477ff',
-      soft: 'rgba(164, 119, 255, 0.21)',
-      glow: 'rgba(164, 119, 255, 0.40)',
-      surface: 'rgba(164, 119, 255, 0.115)'
+      accent: '#d7ad35',
+      soft: 'rgba(215, 173, 53, 0.22)',
+      glow: 'rgba(215, 173, 53, 0.43)',
+      surface: 'rgba(215, 173, 53, 0.12)'
     },
 
     TK: {
@@ -249,6 +249,26 @@
   let streakModalHideTimer = null;
   let streakSheetDragState = null;
 
+  const APP_DATA_CACHE_KEY =
+    'elidir-stats-data-cache-v1';
+
+  let guildData = null;
+  let activeMilestoneMetric = 'dpr';
+  let activeClassPeriod = 'lifetime';
+  let personalRecordCarouselFrame = null;
+
+  let guildLeaderboardPeriod = 'recent';
+  let guildLeaderboardMetric = 'dpr';
+  let guildRecordMetric = 'dpr';
+  let guildRecordBoss = 'ALL';
+
+  let h2hOpponent = '';
+  let h2hBossCode = 'ALL';
+  let h2hPeriod = 'd30';
+
+  let guildSheetHideTimer = null;
+  let guildSheetDragState = null;
+
   document.addEventListener(
     'DOMContentLoaded',
     initialiseApp
@@ -258,6 +278,7 @@
   function initialiseApp() {
     registerServiceWorker();
     initialiseStreakBottomSheet();
+    initialiseGuildBottomSheet();
 
     document
       .getElementById('bossSelect')
@@ -288,6 +309,8 @@
       function(event) {
         if (event.key === 'Escape') {
           closeStreakModal();
+          closeGuildSheet();
+          closeGuildLeaderboardModal();
         }
       }
     );
@@ -307,7 +330,11 @@
         );
       });
 
-    loadInitialAppData(false);
+    if (restoreCachedAppData()) {
+      refreshAppDataSilently();
+    } else {
+      loadInitialAppData(false);
+    }
   }
 
 
@@ -346,43 +373,25 @@
     }
 
     try {
-      const results =
-        await Promise.all([
-          requestApiPromise('home', {}),
-          requestApiPromise('progress', {}),
-          requestApiPromise('records', {}),
-          requestApiPromise(
-            'boss',
-            { boss: currentBossCode }
-          )
-        ]);
+      const bundle =
+        await requestApiPromise(
+          'bootstrap',
+          { boss: currentBossCode }
+        );
 
-      homepageData = results[0];
-      progressData = results[1];
-      recordsData = results[2];
-      bossPageCache[currentBossCode] =
-        results[3];
-
-      renderBossPage(
-        bossPageCache[currentBossCode]
-      );
-
-      renderProgressPage(progressData);
-      renderFullRecordsPage(recordsData);
-      renderHomePage(homepageData);
+      applyFreshMainData_([
+        bundle.home,
+        bundle.progress,
+        bundle.records,
+        bundle.boss
+      ]);
 
       showHomeView(false);
       hideLoading();
-
-      requestAnimationFrame(
-        function() {
-          renderDprChart(
-            homepageData.lastSeven || []
-          );
-        }
-      );
+      saveAppCache();
 
       preloadRemainingBossPages();
+      loadGuildDataInBackground(true);
 
     } catch (error) {
       showError(error);
@@ -419,6 +428,7 @@
         { boss: code },
         function(data) {
           bossPageCache[code] = data;
+          saveAppCache();
           loadNext();
         },
         function() {
@@ -430,6 +440,206 @@
     loadNext();
   }
 
+
+
+
+  function applyFreshMainData_(results) {
+    homepageData = results[0];
+    progressData = results[1];
+    recordsData = results[2];
+    bossPageCache[currentBossCode] =
+      results[3];
+
+    renderBossPage(
+      bossPageCache[currentBossCode]
+    );
+
+    renderProgressPage(progressData);
+    renderFullRecordsPage(recordsData);
+    renderHomePage(homepageData);
+
+    requestAnimationFrame(
+      function() {
+        renderDprChart(
+          homepageData.lastSeven || []
+        );
+      }
+    );
+  }
+
+
+  function restoreCachedAppData() {
+    let cached = null;
+
+    try {
+      cached = JSON.parse(
+        window.localStorage.getItem(
+          APP_DATA_CACHE_KEY
+        ) || 'null'
+      );
+    } catch (error) {
+      cached = null;
+    }
+
+    if (
+      !cached ||
+      !cached.homepageData ||
+      !cached.progressData ||
+      !cached.recordsData
+    ) {
+      return false;
+    }
+
+    homepageData = cached.homepageData;
+    progressData = cached.progressData;
+    recordsData = cached.recordsData;
+    guildData = cached.guildData || null;
+
+    if (cached.currentBossCode) {
+      currentBossCode = cached.currentBossCode;
+    }
+
+    Object.keys(cached.bossPageCache || {})
+      .forEach(function(code) {
+        bossPageCache[code] =
+          cached.bossPageCache[code];
+      });
+
+    if (bossPageCache[currentBossCode]) {
+      renderBossPage(
+        bossPageCache[currentBossCode]
+      );
+    }
+
+    renderProgressPage(progressData);
+    renderFullRecordsPage(recordsData);
+    renderHomePage(homepageData);
+
+    if (guildData) {
+      initialiseGuildDefaults();
+      renderGuildPage();
+      renderGuildH2hCards();
+    }
+
+    showHomeView(false);
+    hideLoading();
+
+    requestAnimationFrame(
+      function() {
+        renderDprChart(
+          homepageData.lastSeven || []
+        );
+      }
+    );
+
+    return true;
+  }
+
+
+  function saveAppCache() {
+    try {
+      window.localStorage.setItem(
+        APP_DATA_CACHE_KEY,
+        JSON.stringify({
+          savedAt: Date.now(),
+          homepageData: homepageData,
+          progressData: progressData,
+          recordsData: recordsData,
+          guildData: guildData,
+          currentBossCode: currentBossCode,
+          bossPageCache: bossPageCache
+        })
+      );
+    } catch (error) {
+      // Cache is an optimisation only; the live app still works.
+    }
+  }
+
+
+  async function refreshAppDataSilently() {
+    try {
+      /*
+       * Cached launches only make this tiny status request first.
+       * If the twice-daily sync has not changed, the already-rendered
+       * cache stays in place and no heavy page requests are needed.
+       */
+      const status =
+        await requestApiPromise('ping', {});
+
+      const cachedTimestamp =
+        homepageData &&
+        homepageData.identity
+          ? String(
+              homepageData.identity.currentRunTimestamp || ''
+            )
+          : '';
+
+      const liveTimestamp =
+        status
+          ? String(
+              status.currentRunTimestamp || ''
+            )
+          : '';
+
+      if (
+        cachedTimestamp &&
+        liveTimestamp &&
+        cachedTimestamp === liveTimestamp
+      ) {
+        if (!guildData) {
+          loadGuildDataInBackground(false);
+        }
+        return;
+      }
+
+      const bundle =
+        await requestApiPromise(
+          'bootstrap',
+          { boss: currentBossCode }
+        );
+
+      applyFreshMainData_([
+        bundle.home,
+        bundle.progress,
+        bundle.records,
+        bundle.boss
+      ]);
+
+      saveAppCache();
+      preloadRemainingBossPages();
+      loadGuildDataInBackground(true);
+    } catch (error) {
+      /*
+       * A background refresh must never replace a usable cache with
+       * an error screen. The next launch/refresh can try again.
+       */
+    }
+  }
+
+
+  function loadGuildDataInBackground(forceRefresh) {
+    if (guildData && !forceRefresh) {
+      initialiseGuildDefaults();
+      renderGuildPage();
+      renderGuildH2hCards();
+      return;
+    }
+
+    requestApi(
+      'guild',
+      {},
+      function(data) {
+        guildData = data;
+        initialiseGuildDefaults();
+        renderGuildPage();
+        renderGuildH2hCards();
+        saveAppCache();
+      },
+      function() {
+        renderGuildH2hCards();
+      }
+    );
+  }
 
   /**
    * ==========================================================
@@ -471,13 +681,16 @@
     renderAverages(data.averages);
     renderLastSeven(data.lastSeven);
     renderStreaks(data.streaks);
+    renderGuildH2hCards();
 
     activeHomeBossCode =
       data.identity.todaysBossCode ||
       'TK';
 
-    resetHomeBossCarousel();
-    applyBossTheme(activeHomeBossCode);
+    if (currentView === 'home') {
+      resetHomeBossCarousel();
+      applyBossTheme(activeHomeBossCode);
+    }
   }
 
 
@@ -770,8 +983,11 @@
       return;
     }
 
-    carousel.scrollLeft = 0;
-    updateHomeBossCarouselState(0, 0);
+    requestAnimationFrame(function() {
+      const width = carousel.clientWidth || 1;
+      carousel.scrollLeft = width;
+      updateHomeBossCarouselState(1, 1);
+    });
   }
 
 
@@ -819,6 +1035,20 @@
       opening
         ? 'Hide last four attempts'
         : 'View last four attempts';
+
+    if (!opening) {
+      window.setTimeout(
+        function() {
+          toggle.scrollIntoView({
+            behavior: prefersReducedMotion()
+              ? 'auto'
+              : 'smooth',
+            block: 'center'
+          });
+        },
+        prefersReducedMotion() ? 0 : 370
+      );
+    }
   }
 
 
@@ -885,14 +1115,14 @@
     if (todayDot) {
       todayDot.classList.toggle(
         'active',
-        index === 0
+        index === 1
       );
     }
 
     if (yesterdayDot) {
       yesterdayDot.classList.toggle(
         'active',
-        index === 1
+        index === 0
       );
     }
 
@@ -914,25 +1144,43 @@
 
     const blendAmount =
       Number.isFinite(progress)
-        ? Math.max(
-            0,
-            Math.min(1, progress)
-          )
+        ? Math.max(0, Math.min(1, progress))
         : index;
 
     activeHomeBossCode =
       blendAmount >= 0.5
-        ? yesterdayCode
-        : todayCode;
+        ? todayCode
+        : yesterdayCode;
 
     if (currentView === 'home') {
       applyBossThemeBlend(
-        todayCode,
         yesterdayCode,
+        todayCode,
         blendAmount
       );
     }
   }
+
+
+  function scrollHomeBossCarousel(which) {
+    const carousel =
+      document.getElementById(
+        'homeBossCarousel'
+      );
+
+    if (!carousel) {
+      return;
+    }
+
+    carousel.scrollTo({
+      left:
+        which === 'yesterday'
+          ? 0
+          : carousel.clientWidth,
+      behavior: 'smooth'
+    });
+  }
+
 
   function showBossCodeFallback(
     image,
@@ -1420,7 +1668,9 @@
     currentBossCode =
       boss.code;
 
-    applyBossTheme(boss.code);
+    if (currentView === 'bosses') {
+      applyBossTheme(boss.code);
+    }
 
     document
       .getElementById('bossSelect')
@@ -1641,17 +1891,24 @@
         '.boss-table-card'
       );
 
+    const section =
+      document.querySelector(
+        '.boss-results-section'
+      );
+
     const startHeight =
       card
         ? card.getBoundingClientRect().height
         : 0;
 
+    const opening =
+      bossResultsExpandedByBoss[
+        currentBossResultsCode
+      ] !== true;
+
     bossResultsExpandedByBoss[
       currentBossResultsCode
-    ] =
-      !bossResultsExpandedByBoss[
-        currentBossResultsCode
-      ];
+    ] = opening;
 
     renderBossResultsTable(
       currentBossResults,
@@ -1659,10 +1916,22 @@
       currentBossResultsCode
     );
 
+    const returnToTop = function() {
+      if (!opening && section) {
+        section.scrollIntoView({
+          behavior: prefersReducedMotion()
+            ? 'auto'
+            : 'smooth',
+          block: 'start'
+        });
+      }
+    };
+
     if (
       !card ||
       prefersReducedMotion()
     ) {
+      returnToTop();
       return;
     }
 
@@ -1674,6 +1943,7 @@
       !Number.isFinite(endHeight) ||
       Math.abs(endHeight - startHeight) < 2
     ) {
+      returnToTop();
       return;
     }
 
@@ -1688,14 +1958,8 @@
     const animation =
       card.animate(
         [
-          {
-            height:
-              startHeight + 'px'
-          },
-          {
-            height:
-              endHeight + 'px'
-          }
+          { height: startHeight + 'px' },
+          { height: endHeight + 'px' }
         ],
         {
           duration: 420,
@@ -1708,12 +1972,14 @@
       function() {
         card.style.height = '';
         card.style.overflow = '';
+        returnToTop();
       };
 
     animation.oncancel =
       function() {
         card.style.height = '';
         card.style.overflow = '';
+        returnToTop();
       };
   }
 
@@ -2215,7 +2481,7 @@
     );
 
     renderClassDistribution(
-      data.classDistribution || []
+      data.classDistribution || {}
     );
   }
 
@@ -2961,7 +3227,10 @@
               }
             ],
             {
-              duration: 760,
+              duration:
+                element.classList.contains('progress-line')
+                  ? 1450
+                  : 820,
               delay:
                 Number.isFinite(delay)
                   ? delay
@@ -3055,179 +3324,249 @@
 
     container.innerHTML = '';
 
-    container.appendChild(
-      createMilestoneTrack(
-        'DPR milestones',
-        data.dpr || [],
-        '#4da3ff'
-      )
-    );
+    const categories = {
+      dpr: {
+        label: 'DPR',
+        title: 'DPR milestones',
+        colour: '#4da3ff',
+        items: data.dpr || []
+      },
+      damage: {
+        label: 'Damage',
+        title: 'Damage milestones',
+        colour: '#ff5a66',
+        items: data.damage || []
+      },
+      weekly: {
+        label: 'Weekly',
+        title: 'Weekly average DPR',
+        colour: '#4cff8b',
+        items: data.weekly || []
+      },
+      power: {
+        label: 'Power',
+        title: 'Power milestones',
+        colour: '#ffab45',
+        items: data.power || []
+      }
+    };
 
-    container.appendChild(
-      createMilestoneTrack(
-        'Damage milestones',
-        data.damage || [],
-        '#ff5a66'
-      )
-    );
+    if (!categories[activeMilestoneMetric]) {
+      activeMilestoneMetric = 'dpr';
+    }
 
-    container.appendChild(
-      createMilestoneTrack(
-        'Weekly average DPR',
-        data.weekly || [],
-        '#4cff8b'
-      )
-    );
-
-    const rankGrid =
-      document.createElement('div');
-
-    rankGrid.className =
-      'milestone-rank-grid';
-
-    (data.firstRanks || [])
-      .forEach(function(item) {
-        rankGrid.appendChild(
-          createMilestoneRankCard(item)
-        );
-      });
-
-    container.appendChild(rankGrid);
-
-    const checklist =
+    const card =
       document.createElement('article');
 
-    checklist.className =
-      'milestone-checklist-card';
+    card.className =
+      'milestone-track-card milestone-selector-card';
+
+    const tabs =
+      document.createElement('div');
+
+    tabs.className =
+      'milestone-tabs';
+
+    Object.keys(categories)
+      .forEach(function(key) {
+        const item = categories[key];
+        const button =
+          document.createElement('button');
+
+        button.type = 'button';
+        button.className =
+          'milestone-tab ' +
+          (
+            key === activeMilestoneMetric
+              ? 'active'
+              : ''
+          );
+        button.textContent = item.label;
+        button.style.setProperty(
+          '--milestone-tab-colour',
+          item.colour
+        );
+
+        button.addEventListener(
+          'click',
+          function() {
+            activeMilestoneMetric = key;
+            renderMilestones(data);
+          }
+        );
+
+        tabs.appendChild(button);
+      });
+
+    card.appendChild(tabs);
+
+    const active =
+      categories[activeMilestoneMetric];
 
     const heading =
       document.createElement('div');
 
     heading.className =
-      'milestone-subheading';
+      'milestone-selector-heading';
 
     heading.innerHTML = `
-      <p class="eyebrow">Completion challenges</p>
-      <h3>Checklists</h3>
+      <p class="eyebrow">Career checkpoints</p>
+      <h3>${escapeHtml(active.title)}</h3>
     `;
 
-    checklist.appendChild(heading);
+    card.appendChild(heading);
 
-    const list =
-      document.createElement('div');
+    const track = createMilestoneTrack(
+      active.title,
+      active.items,
+      active.colour,
+      true
+    );
 
-    list.className =
-      'milestone-checklist-list';
+    card.appendChild(
+      track.querySelector('.milestone-track')
+    );
 
-    (
-      data.checklists &&
-      data.checklists.classes
-        ? data.checklists.classes
-            .slice()
-            .reverse()
-        : []
-    ).forEach(function(item) {
-      list.appendChild(
-        createChecklistRow(item)
-      );
-    });
-
-    if (
-      data.checklists &&
-      data.checklists.pbCycle
-    ) {
-      list.appendChild(
-        createChecklistRow(
-          data.checklists.pbCycle
-        )
-      );
-    }
-
-    checklist.appendChild(list);
-    container.appendChild(checklist);
+    container.appendChild(card);
+    animateFreshSelection(
+      card,
+      '.milestone-tab.active'
+    );
+    animateFreshPanel(
+      card.querySelector('.milestone-track')
+    );
   }
 
 
   function createMilestoneTrack(
     title,
     items,
-    colour
+    colour,
+    omitOuterCard
   ) {
     const card =
       document.createElement('article');
 
     card.className = 'milestone-track-card';
 
-    const titleElement =
-      document.createElement('h3');
+    if (!omitOuterCard) {
+      const titleElement =
+        document.createElement('h3');
 
-    titleElement.textContent = title;
-    card.appendChild(titleElement);
+      titleElement.textContent = title;
+      card.appendChild(titleElement);
+    }
 
     const track =
       document.createElement('div');
 
     track.className = 'milestone-track';
 
+    const ascending =
+      items.slice().sort(function(a, b) {
+        return (
+          Number(a.threshold || 0) -
+          Number(b.threshold || 0)
+        );
+      });
+
+    const achievedAscending =
+      ascending.filter(function(item) {
+        return item.achieved;
+      });
+
+    const nextPending =
+      ascending.find(function(item) {
+        return !item.achieved;
+      });
+
     items
       .slice()
-      .reverse()
+      .sort(function(a, b) {
+        return (
+          Number(b.threshold || 0) -
+          Number(a.threshold || 0)
+        );
+      })
       .forEach(function(item) {
-      const node =
-        document.createElement('div');
+        const node =
+          document.createElement('div');
 
-      node.className =
-        'milestone-node ' +
-        (
-          item.achieved
-            ? 'achieved'
-            : 'pending'
+        node.className =
+          'milestone-node ' +
+          (
+            item.achieved
+              ? 'achieved'
+              : 'pending'
+          );
+
+        node.style.setProperty(
+          '--milestone-colour',
+          colour
         );
 
-      node.style.setProperty(
-        '--milestone-colour',
-        colour
-      );
+        if (item.achieved) {
+          const sequenceIndex =
+            achievedAscending.indexOf(item);
 
-      const marker =
-        document.createElement('span');
+          node.classList.add(
+            'milestone-sequence-glow'
+          );
 
-      marker.className =
-        'milestone-marker';
+          node.style.setProperty(
+            '--milestone-delay',
+            String(
+              Math.max(0, sequenceIndex) *
+              520
+            ) + 'ms'
+          );
+        } else if (item === nextPending) {
+          node.classList.add(
+            'milestone-next-target'
+          );
 
-      node.appendChild(marker);
+          node.style.setProperty(
+            '--milestone-delay',
+            String(
+              achievedAscending.length *
+              520 + 350
+            ) + 'ms'
+          );
+        }
 
-      const content =
-        document.createElement('div');
+        const marker =
+          document.createElement('span');
 
-      content.className =
-        'milestone-node-content';
+        marker.className =
+          'milestone-marker';
 
-      const valueText =
-        formatMilestoneValue(item);
+        node.appendChild(marker);
 
-      content.innerHTML = `
-        <strong>${escapeHtml(item.label || '')}</strong>
-        <span class="milestone-status">
-          ${
-            item.achieved
-              ? 'Achieved'
-              : 'Closest'
-          }
-        </span>
-        <span class="milestone-result">
-          ${escapeHtml(valueText)}
-        </span>
-        <span class="milestone-context">
-          ${escapeHtml(
-            buildMilestoneContext(item)
-          )}
-        </span>
-      `;
+        const content =
+          document.createElement('div');
 
-      node.appendChild(content);
-      track.appendChild(node);
-    });
+        content.className =
+          'milestone-node-content';
+
+        const valueText =
+          formatMilestoneValue(item);
+
+        content.innerHTML = `
+          <strong>${escapeHtml(item.label || '')}</strong>
+          <span class="milestone-status">
+            ${item.achieved ? 'Achieved' : 'Next target'}
+          </span>
+          <span class="milestone-result">
+            ${escapeHtml(valueText)}
+          </span>
+          <span class="milestone-context">
+            ${escapeHtml(buildMilestoneContext(item))}
+          </span>
+        `;
+
+        node.appendChild(content);
+        track.appendChild(node);
+      });
 
     card.appendChild(track);
     return card;
@@ -3243,9 +3582,15 @@
       return 'No result yet';
     }
 
-    return item.type === 'damage'
-      ? formatDamage(item.value)
-      : formatDpr(item.value);
+    if (item.type === 'damage') {
+      return formatDamage(item.value);
+    }
+
+    if (item.type === 'power') {
+      return formatPower(item.value);
+    }
+
+    return formatDpr(item.value);
   }
 
 
@@ -3345,85 +3690,173 @@
   }
 
 
-  function renderClassDistribution(items) {
+  function renderClassDistribution(dataSets) {
     const container =
       document.getElementById(
         'classDistribution'
       );
 
-    container.innerHTML = '';
+    const periodDefinitions = [
+      ['d7', '7D'],
+      ['d30', '30D'],
+      ['d90', '3M'],
+      ['d180', '6M'],
+      ['lifetime', 'Lifetime']
+    ];
 
-    if (!items.length) {
-      container.textContent =
-        'No class data available.';
-      return;
+    const data =
+      dataSets && !Array.isArray(dataSets)
+        ? dataSets
+        : { lifetime: dataSets || [] };
+
+    if (!data[activeClassPeriod]) {
+      activeClassPeriod = 'lifetime';
     }
 
-    const bar =
-      document.createElement('div');
+    if (!container.dataset.initialised) {
+      container.innerHTML = `
+        <div class="class-period-tabs"></div>
+        <div class="class-distribution-layout">
+          <div class="class-distribution-vertical-bar"></div>
+          <div class="class-distribution-legend class-distribution-vertical-legend"></div>
+        </div>
+      `;
+      container.dataset.initialised = 'true';
+    }
 
-    bar.className =
-      'class-distribution-bar';
+    const tabs =
+      container.querySelector(
+        '.class-period-tabs'
+      );
 
-    items.forEach(function(item) {
-      if (item.percentage <= 0) {
-        return;
-      }
+    tabs.innerHTML = '';
 
-      const segment =
-        document.createElement('span');
+    periodDefinitions.forEach(function(definition) {
+      const button =
+        document.createElement('button');
 
-      segment.className =
-        'class-distribution-segment';
+      button.type = 'button';
+      button.className =
+        'class-period-tab ' +
+        (
+          definition[0] === activeClassPeriod
+            ? 'active'
+            : ''
+        );
+      button.textContent = definition[1];
 
-      segment.style.width =
-        item.percentage + '%';
+      button.addEventListener(
+        'click',
+        function() {
+          activeClassPeriod = definition[0];
+          renderClassDistribution(data);
+        }
+      );
 
-      segment.style.background =
-        item.colour;
-
-      segment.title =
-        item.name +
-        ': ' +
-        item.percentage.toFixed(1) +
-        '%';
-
-      bar.appendChild(segment);
+      tabs.appendChild(button);
     });
 
-    container.appendChild(bar);
+    animateFreshSelection(
+      tabs,
+      '.class-period-tab.active'
+    );
+
+    const items =
+      (data[activeClassPeriod] || [])
+        .slice()
+        .reverse();
+
+    const bar =
+      container.querySelector(
+        '.class-distribution-vertical-bar'
+      );
 
     const legend =
-      document.createElement('div');
+      container.querySelector(
+        '.class-distribution-vertical-legend'
+      );
 
-    legend.className =
-      'class-distribution-legend';
+    const existingSegments = {};
+    bar.querySelectorAll('[data-class-name]')
+      .forEach(function(segment) {
+        existingSegments[
+          segment.dataset.className
+        ] = segment;
+      });
+
+    const existingRows = {};
+    legend.querySelectorAll('[data-class-name]')
+      .forEach(function(row) {
+        existingRows[
+          row.dataset.className
+        ] = row;
+      });
 
     items.forEach(function(item) {
-      const row =
-        document.createElement('div');
+      let segment =
+        existingSegments[item.name];
 
-      row.className =
-        'class-distribution-item';
+      if (!segment) {
+        segment =
+          document.createElement('span');
+        segment.dataset.className = item.name;
+        segment.className =
+          'class-distribution-vertical-segment';
+        segment.style.background = item.colour;
+        bar.appendChild(segment);
+      }
 
-      row.innerHTML = `
-        <span
-          class="class-distribution-swatch"
-          style="background:${item.colour}"
-        ></span>
-        <span class="class-distribution-name">
-          ${escapeHtml(item.name)}
-        </span>
-        <strong>
-          ${item.percentage.toFixed(1)}%
-        </strong>
-        <small>${item.count}</small>
-      `;
+      requestAnimationFrame(function() {
+        segment.style.height =
+          Math.max(0, item.percentage) + '%';
+        segment.style.opacity =
+          item.count > 0 ? '1' : '0';
+      });
 
-      legend.appendChild(row);
+      let row = existingRows[item.name];
+
+      if (!row) {
+        row = document.createElement('div');
+        row.dataset.className = item.name;
+        row.className =
+          'class-distribution-item class-distribution-vertical-item';
+        row.innerHTML = `
+          <span
+            class="class-distribution-swatch"
+            style="background:${item.colour}"
+          ></span>
+          <span class="class-distribution-name"></span>
+          <strong>0.0%</strong>
+          <small>0</small>
+        `;
+        legend.appendChild(row);
+      }
+
+      row.querySelector(
+        '.class-distribution-name'
+      ).textContent = item.name;
+
+      animateNumericText(
+        row.querySelector('strong'),
+        item.percentage,
+        function(value) {
+          return value.toFixed(1) + '%';
+        }
+      );
+
+      animateNumericText(
+        row.querySelector('small'),
+        item.count,
+        function(value) {
+          return String(Math.round(value));
+        }
+      );
+
+      row.classList.toggle(
+        'is-zero',
+        item.count <= 0
+      );
     });
-
-    container.appendChild(legend);
   }
 
 
@@ -3500,7 +3933,19 @@
 
     container.innerHTML = '';
 
-    container.appendChild(
+    const carousel =
+      document.createElement('div');
+
+    carousel.id =
+      'personalRecordCarousel';
+    carousel.className =
+      'record-leaderboard-carousel';
+
+    const dprSlide =
+      document.createElement('div');
+    dprSlide.className =
+      'record-leaderboard-slide';
+    dprSlide.appendChild(
       createRecordLeaderboard(
         'Top 10 DPR results',
         dprRows,
@@ -3508,14 +3953,182 @@
       )
     );
 
-    container.appendChild(
+    const damageSlide =
+      document.createElement('div');
+    damageSlide.className =
+      'record-leaderboard-slide';
+    damageSlide.appendChild(
       createRecordLeaderboard(
         'Top 10 Damage results',
         damageRows,
         'damage'
       )
     );
+
+    carousel.appendChild(dprSlide);
+    carousel.appendChild(damageSlide);
+
+    const indicators =
+      document.createElement('div');
+
+    indicators.className =
+      'record-carousel-indicators';
+
+    ['dpr', 'damage'].forEach(function(metric) {
+      const button =
+        document.createElement('button');
+
+      button.type = 'button';
+      button.dataset.recordMetric = metric;
+      button.className =
+        'record-carousel-indicator ' +
+        (metric === 'dpr' ? 'active' : '');
+      button.textContent =
+        metric === 'dpr' ? 'DPR' : 'DMG';
+
+      button.addEventListener(
+        'click',
+        function() {
+          scrollPersonalRecordLeaderboard(metric);
+        }
+      );
+
+      indicators.appendChild(button);
+    });
+
+    carousel.addEventListener(
+      'scroll',
+      handlePersonalRecordCarouselScroll,
+      { passive: true }
+    );
+
+    container.appendChild(carousel);
+    container.appendChild(indicators);
   }
+
+
+  function handlePersonalRecordCarouselScroll() {
+    if (personalRecordCarouselFrame !== null) {
+      cancelAnimationFrame(
+        personalRecordCarouselFrame
+      );
+    }
+
+    personalRecordCarouselFrame =
+      requestAnimationFrame(function() {
+        const carousel =
+          document.getElementById(
+            'personalRecordCarousel'
+          );
+
+        if (!carousel) {
+          return;
+        }
+
+        const metric =
+          carousel.scrollLeft >=
+          carousel.clientWidth * 0.5
+            ? 'damage'
+            : 'dpr';
+
+        document
+          .querySelectorAll(
+            '.record-carousel-indicator'
+          )
+          .forEach(function(button) {
+            button.classList.toggle(
+              'active',
+              button.dataset.recordMetric ===
+              metric
+            );
+          });
+      });
+  }
+
+
+  function scrollPersonalRecordLeaderboard(metric) {
+    const carousel =
+      document.getElementById(
+        'personalRecordCarousel'
+      );
+
+    if (!carousel) {
+      return;
+    }
+
+    carousel.scrollTo({
+      left:
+        metric === 'damage'
+          ? carousel.clientWidth
+          : 0,
+      behavior: 'smooth'
+    });
+  }
+
+
+  function animateNumericText(
+    element,
+    targetValue,
+    formatter
+  ) {
+    if (!element) {
+      return;
+    }
+
+    const target = Number(targetValue);
+
+    if (!Number.isFinite(target)) {
+      element.textContent =
+        formatter ? formatter(0) : '0';
+      return;
+    }
+
+    const previous = Number(
+      element.dataset.numericValue || 0
+    );
+
+    element.dataset.numericValue =
+      String(target);
+
+    if (
+      prefersReducedMotion() ||
+      !Number.isFinite(previous) ||
+      previous === target
+    ) {
+      element.textContent =
+        formatter
+          ? formatter(target)
+          : String(target);
+      return;
+    }
+
+    const startTime = performance.now();
+    const duration = 420;
+
+    const step = function(now) {
+      const progress = Math.min(
+        1,
+        (now - startTime) / duration
+      );
+      const eased =
+        1 - Math.pow(1 - progress, 3);
+      const value =
+        previous +
+        (target - previous) * eased;
+
+      element.textContent =
+        formatter
+          ? formatter(value)
+          : String(value);
+
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      }
+    };
+
+    requestAnimationFrame(step);
+  }
+
 
 
   function createRecordLeaderboard(
@@ -3870,6 +4483,1265 @@
     }
   }
 
+
+
+
+  function animateFreshSelection(
+    container,
+    selector
+  ) {
+    if (
+      !container ||
+      prefersReducedMotion()
+    ) {
+      return;
+    }
+
+    const active = Array.from(
+      container.querySelectorAll(selector)
+    );
+
+    active.forEach(function(element) {
+      element.classList.remove('active');
+    });
+
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() {
+        active.forEach(function(element) {
+          element.classList.add('active');
+        });
+      });
+    });
+  }
+
+
+  function animateFreshPanel(element) {
+    if (
+      !element ||
+      prefersReducedMotion() ||
+      typeof element.animate !== 'function'
+    ) {
+      return;
+    }
+
+    element.animate(
+      [
+        {
+          opacity: 0.55,
+          transform: 'translateY(5px) scale(0.997)'
+        },
+        {
+          opacity: 1,
+          transform: 'translateY(0) scale(1)'
+        }
+      ],
+      {
+        duration: 260,
+        easing: 'cubic-bezier(0.22, 1, 0.36, 1)'
+      }
+    );
+  }
+
+
+  /**
+   * ==========================================================
+   * GUILD
+   * ==========================================================
+   */
+
+  function initialiseGuildDefaults() {
+    if (!guildData) {
+      return;
+    }
+
+    if (
+      !h2hOpponent ||
+      (guildData.players || []).indexOf(
+        h2hOpponent
+      ) === -1 ||
+      h2hOpponent === guildData.player
+    ) {
+      h2hOpponent =
+        guildData.defaultOpponent ||
+        (guildData.players || [])
+          .find(function(name) {
+            return name !== guildData.player;
+          }) ||
+        '';
+    }
+  }
+
+
+  function renderGuildPage() {
+    renderGuildLeaderboard();
+    renderGuildH2hCards();
+    renderGuildRecords();
+  }
+
+
+  function renderGuildLeaderboard() {
+    const container =
+      document.getElementById(
+        'guildLeaderboardCard'
+      );
+
+    if (!container) {
+      return;
+    }
+
+    if (!guildData) {
+      container.innerHTML =
+        '<p class="guild-loading-text">Guild data is loading…</p>';
+      return;
+    }
+
+    const rows =
+      getSortedGuildLeaderboardRows();
+
+    const collapsed =
+      getFocusedGuildRows(rows, 7);
+
+    const periodLabels = {
+      recent: 'Recent',
+      d7: '7D',
+      d30: '30D'
+    };
+
+    container.innerHTML = `
+      <div class="guild-control-row guild-metric-tabs">
+        ${createGuildControlButtonHtml(
+          'DPR',
+          'guildLeaderboardMetric',
+          'dpr',
+          guildLeaderboardMetric === 'dpr'
+        )}
+        ${createGuildControlButtonHtml(
+          'Damage',
+          'guildLeaderboardMetric',
+          'damage',
+          guildLeaderboardMetric === 'damage'
+        )}
+      </div>
+      <div class="guild-control-row guild-period-tabs">
+        ${Object.keys(periodLabels)
+          .map(function(key) {
+            return createGuildControlButtonHtml(
+              periodLabels[key],
+              'guildLeaderboardPeriod',
+              key,
+              guildLeaderboardPeriod === key
+            );
+          })
+          .join('')}
+      </div>
+      <div class="guild-leaderboard-context">
+        <span>${escapeHtml(
+          guildLeaderboardPeriod === 'recent'
+            ? (guildData.latestBoss + ' · ' + guildData.latestDate)
+            : (
+                periodLabels[guildLeaderboardPeriod] +
+                ' average'
+              )
+        )}</span>
+      </div>
+      <div class="guild-leaderboard-list">
+        ${collapsed
+          .map(function(row) {
+            return createGuildLeaderboardRowHtml(row);
+          })
+          .join('')}
+      </div>
+      <button
+        type="button"
+        class="inline-drawer-toggle guild-expand-leaderboard"
+        onclick="openGuildLeaderboardModal()"
+      >
+        View full leaderboard
+      </button>
+    `;
+
+    bindGuildControlButtons(container);
+    animateFreshSelection(
+      container,
+      '.guild-choice-button.active'
+    );
+    animateFreshPanel(
+      container.querySelector('.guild-leaderboard-list')
+    );
+  }
+
+
+  function getSortedGuildLeaderboardRows() {
+    if (!guildData) {
+      return [];
+    }
+
+    const rows =
+      (
+        guildData.leaderboards &&
+        guildData.leaderboards[
+          guildLeaderboardPeriod
+        ]
+          ? guildData.leaderboards[
+              guildLeaderboardPeriod
+            ]
+          : []
+      ).slice();
+
+    rows.sort(function(a, b) {
+      const aValue = a[guildLeaderboardMetric];
+      const bValue = b[guildLeaderboardMetric];
+
+      if (
+        Number.isFinite(bValue) &&
+        !Number.isFinite(aValue)
+      ) {
+        return 1;
+      }
+
+      if (
+        Number.isFinite(aValue) &&
+        !Number.isFinite(bValue)
+      ) {
+        return -1;
+      }
+
+      if (
+        Number.isFinite(aValue) &&
+        Number.isFinite(bValue) &&
+        bValue !== aValue
+      ) {
+        return bValue - aValue;
+      }
+
+      return String(a.name).localeCompare(
+        String(b.name)
+      );
+    });
+
+    return rows;
+  }
+
+
+  function getFocusedGuildRows(rows, count) {
+    if (rows.length <= count) {
+      return rows;
+    }
+
+    const selfName =
+      guildData ? guildData.player : '';
+
+    const selfIndex = rows.findIndex(
+      function(row) {
+        return row.name === selfName;
+      }
+    );
+
+    if (selfIndex < 0) {
+      return rows.slice(0, count);
+    }
+
+    let start =
+      selfIndex <= 1
+        ? 0
+        : selfIndex - 3;
+
+    start = Math.max(
+      0,
+      Math.min(
+        rows.length - count,
+        start
+      )
+    );
+
+    return rows.slice(start, start + count);
+  }
+
+
+  function createGuildLeaderboardRowHtml(row) {
+    const primaryMetric =
+      guildLeaderboardMetric;
+
+    const secondaryMetric =
+      primaryMetric === 'dpr'
+        ? 'damage'
+        : 'dpr';
+
+    const primaryRank =
+      row[primaryMetric + 'Rank'];
+
+    const secondaryRank =
+      row[secondaryMetric + 'Rank'];
+
+    const podiumClass =
+      Number.isFinite(primaryRank) &&
+      primaryRank <= 3
+        ? ' podium-' + primaryRank
+        : '';
+
+    const selfClass =
+      guildData &&
+      row.name === guildData.player
+        ? ' is-self'
+        : '';
+
+    const count =
+      row[primaryMetric + 'Count'];
+
+    return `
+      <div class="guild-leaderboard-row${podiumClass}${selfClass}">
+        <span class="guild-leaderboard-position">
+          ${formatRank(primaryRank)}
+        </span>
+        <div class="guild-leaderboard-player">
+          <strong>${escapeHtml(row.name)}</strong>
+          <span>
+            ${escapeHtml(
+              guildLeaderboardPeriod === 'recent'
+                ? 'Latest result'
+                : (
+                    String(count || 0) +
+                    '/' +
+                    String(row.totalDays || 0) +
+                    ' attacks'
+                  )
+            )}
+          </span>
+        </div>
+        <div class="guild-leaderboard-values">
+          <strong>
+            ${formatGuildMetricValue(
+              row[primaryMetric],
+              primaryMetric
+            )}
+          </strong>
+          <span>
+            ${secondaryMetric === 'dpr' ? 'DPR' : 'DMG'}
+            ${formatGuildMetricValue(
+              row[secondaryMetric],
+              secondaryMetric
+            )}
+            ${formatRankHtml(secondaryRank)}
+          </span>
+        </div>
+      </div>
+    `;
+  }
+
+
+  function formatGuildMetricValue(value, metric) {
+    return metric === 'damage'
+      ? formatDamage(value)
+      : formatDpr(value);
+  }
+
+
+  function createGuildControlButtonHtml(
+    label,
+    group,
+    value,
+    selected
+  ) {
+    return `
+      <button
+        type="button"
+        class="guild-choice-button ${selected ? 'active' : ''}"
+        data-guild-control-group="${escapeHtml(group)}"
+        data-guild-control-value="${escapeHtml(value)}"
+      >${escapeHtml(label)}</button>
+    `;
+  }
+
+
+  function bindGuildControlButtons(container) {
+    container
+      .querySelectorAll(
+        '[data-guild-control-group]'
+      )
+      .forEach(function(button) {
+        button.addEventListener(
+          'click',
+          function() {
+            const group =
+              button.dataset.guildControlGroup;
+            const value =
+              button.dataset.guildControlValue;
+
+            if (group === 'guildLeaderboardMetric') {
+              guildLeaderboardMetric = value;
+              renderGuildLeaderboard();
+              renderGuildLeaderboardModal();
+            } else if (
+              group === 'guildLeaderboardPeriod'
+            ) {
+              guildLeaderboardPeriod = value;
+              renderGuildLeaderboard();
+              renderGuildLeaderboardModal();
+            } else if (group === 'h2hBoss') {
+              h2hBossCode = value;
+              renderGuildH2hCards();
+            } else if (group === 'h2hPeriod') {
+              h2hPeriod = value;
+              renderGuildH2hCards();
+            } else if (group === 'guildRecordMetric') {
+              guildRecordMetric = value;
+              renderGuildRecords();
+            } else if (group === 'guildRecordBoss') {
+              guildRecordBoss = value;
+              renderGuildRecords();
+            }
+          }
+        );
+      });
+  }
+
+
+  function openGuildLeaderboardModal() {
+    const modal =
+      document.getElementById(
+        'guildLeaderboardModal'
+      );
+
+    if (!modal) {
+      return;
+    }
+
+    renderGuildLeaderboardModal();
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+
+    requestAnimationFrame(function() {
+      modal.classList.add('is-open');
+    });
+  }
+
+
+  function closeGuildLeaderboardModal() {
+    const modal =
+      document.getElementById(
+        'guildLeaderboardModal'
+      );
+
+    if (!modal || modal.classList.contains('hidden')) {
+      return;
+    }
+
+    modal.classList.remove('is-open');
+
+    window.setTimeout(function() {
+      modal.classList.add('hidden');
+      modal.setAttribute('aria-hidden', 'true');
+
+      if (
+        document.getElementById('guildSheet')
+          .classList.contains('hidden') &&
+        document.getElementById('streakModal')
+          .classList.contains('hidden')
+      ) {
+        document.body.classList.remove('modal-open');
+      }
+    }, prefersReducedMotion() ? 0 : 260);
+  }
+
+
+  function renderGuildLeaderboardModal() {
+    const modal =
+      document.getElementById(
+        'guildLeaderboardModal'
+      );
+
+    if (!modal || !guildData) {
+      return;
+    }
+
+    const controls =
+      document.getElementById(
+        'guildLeaderboardModalControls'
+      );
+
+    controls.innerHTML = `
+      <div class="guild-control-row guild-metric-tabs">
+        ${createGuildControlButtonHtml(
+          'DPR',
+          'guildLeaderboardMetric',
+          'dpr',
+          guildLeaderboardMetric === 'dpr'
+        )}
+        ${createGuildControlButtonHtml(
+          'Damage',
+          'guildLeaderboardMetric',
+          'damage',
+          guildLeaderboardMetric === 'damage'
+        )}
+      </div>
+      <div class="guild-control-row guild-period-tabs">
+        ${[
+          ['recent', 'Recent'],
+          ['d7', '7D'],
+          ['d30', '30D']
+        ].map(function(item) {
+          return createGuildControlButtonHtml(
+            item[1],
+            'guildLeaderboardPeriod',
+            item[0],
+            guildLeaderboardPeriod === item[0]
+          );
+        }).join('')}
+      </div>
+    `;
+
+    bindGuildControlButtons(controls);
+    animateFreshSelection(
+      controls,
+      '.guild-choice-button.active'
+    );
+
+    const rows = getSortedGuildLeaderboardRows();
+    const list =
+      document.getElementById(
+        'guildLeaderboardModalList'
+      );
+
+    list.innerHTML = rows
+      .map(createGuildLeaderboardRowHtml)
+      .join('');
+
+    animateFreshPanel(list);
+  }
+
+
+  function renderGuildH2hCards() {
+    ['homeH2hCard', 'guildH2hCard']
+      .forEach(function(id) {
+        renderH2hCard(id);
+      });
+  }
+
+
+  function renderH2hCard(containerId) {
+    const container =
+      document.getElementById(containerId);
+
+    if (!container) {
+      return;
+    }
+
+    if (!guildData) {
+      container.innerHTML =
+        '<p class="guild-loading-text">Guild comparison data is loading…</p>';
+      return;
+    }
+
+    initialiseGuildDefaults();
+
+    const result = calculateCurrentH2h();
+    const selfName = capitalize(guildData.player);
+    const opponent = h2hOpponent || '—';
+
+    const bossButtons = [
+      ['ALL', 'All'],
+      ['TK', 'TK'],
+      ['FD', 'FD'],
+      ['FDe', 'FDe'],
+      ['Snek', 'Snek'],
+      ['SG', 'SG'],
+      ['CM', 'CM'],
+      ['SM', 'SM']
+    ];
+
+    const periodButtons = [
+      ['d7', '7D'],
+      ['d14', '14D'],
+      ['d30', '30D'],
+      ['d90', '3M'],
+      ['d180', '6M']
+    ];
+
+    container.innerHTML = `
+      <div class="h2h-player-selector-row">
+        <span class="tile-heading">Opponent</span>
+        <button
+          type="button"
+          class="h2h-player-button"
+          onclick="openGuildPlayerPicker()"
+        >
+          ${escapeHtml(opponent)}
+          <span>›</span>
+        </button>
+      </div>
+
+      <div class="h2h-scoreboard">
+        <div class="h2h-person h2h-self">
+          <strong>${escapeHtml(selfName)}</strong>
+          <span>${result.selfWins}</span>
+        </div>
+        <div class="h2h-divider">—</div>
+        <div class="h2h-person h2h-opponent">
+          <strong>${escapeHtml(opponent)}</strong>
+          <span>${result.opponentWins}</span>
+        </div>
+      </div>
+
+      <div class="h2h-balance">
+        <span
+          class="h2h-balance-self"
+          style="width:${result.totalWins ? (result.selfWins / result.totalWins * 100) : 50}%"
+        ></span>
+      </div>
+
+      <div class="guild-control-row guild-boss-tabs">
+        ${bossButtons.map(function(item) {
+          return createGuildControlButtonHtml(
+            item[1],
+            'h2hBoss',
+            item[0],
+            h2hBossCode === item[0]
+          );
+        }).join('')}
+      </div>
+
+      <div class="guild-control-row guild-period-tabs h2h-period-tabs">
+        ${periodButtons.map(function(item) {
+          return createGuildControlButtonHtml(
+            item[1],
+            'h2hPeriod',
+            item[0],
+            h2hPeriod === item[0]
+          );
+        }).join('')}
+      </div>
+
+      <div class="h2h-summary-line">
+        ${result.meetings} counted days · ${escapeHtml(
+          h2hBossCode === 'ALL'
+            ? 'All bosses'
+            : h2hBossCode
+        )}
+      </div>
+
+      <button
+        type="button"
+        class="inline-drawer-toggle h2h-results-button"
+        onclick="openH2hResultsSheet()"
+      >
+        View matchup results
+      </button>
+    `;
+
+    bindGuildControlButtons(container);
+    animateFreshSelection(
+      container,
+      '.guild-choice-button.active'
+    );
+    animateFreshPanel(
+      container.querySelector('.h2h-scoreboard')
+    );
+  }
+
+
+  function h2hPeriodDays() {
+    const map = {
+      d7: 7,
+      d14: 14,
+      d30: 30,
+      d90: 90,
+      d180: 180
+    };
+
+    return map[h2hPeriod] || 30;
+  }
+
+
+  function calculateCurrentH2h() {
+    const empty = {
+      selfWins: 0,
+      opponentWins: 0,
+      meetings: 0,
+      totalWins: 0,
+      rows: []
+    };
+
+    if (
+      !guildData ||
+      !h2hOpponent ||
+      !(guildData.players || []).length
+    ) {
+      return empty;
+    }
+
+    const selfIndex =
+      guildData.players.indexOf(
+        guildData.player
+      );
+
+    const opponentIndex =
+      guildData.players.indexOf(
+        h2hOpponent
+      );
+
+    if (selfIndex < 0 || opponentIndex < 0) {
+      return empty;
+    }
+
+    const source =
+      guildData.h2hDays || [];
+
+    if (!source.length) {
+      return empty;
+    }
+
+    const latestDate =
+      parseCompactApiDate(source[0].date);
+
+    const start = latestDate
+      ? new Date(
+          latestDate.getFullYear(),
+          latestDate.getMonth(),
+          latestDate.getDate() -
+            (h2hPeriodDays() - 1)
+        )
+      : null;
+
+    const rows = [];
+    let selfWins = 0;
+    let opponentWins = 0;
+
+    source.forEach(function(day) {
+      const date =
+        parseCompactApiDate(day.date);
+
+      if (start && date && date < start) {
+        return;
+      }
+
+      if (
+        h2hBossCode !== 'ALL' &&
+        day.bossCode !== h2hBossCode
+      ) {
+        return;
+      }
+
+      const selfDpr =
+        parseNumeric(day.dpr[selfIndex]);
+      const opponentDpr =
+        parseNumeric(day.dpr[opponentIndex]);
+      const selfDamage =
+        parseNumeric(day.damage[selfIndex]);
+      const opponentDamage =
+        parseNumeric(day.damage[opponentIndex]);
+
+      const selfAttacked =
+        Number.isFinite(selfDpr);
+      const opponentAttacked =
+        Number.isFinite(opponentDpr);
+
+      if (!selfAttacked && !opponentAttacked) {
+        return;
+      }
+
+      let winner = '';
+
+      if (selfAttacked && !opponentAttacked) {
+        winner = 'self';
+      } else if (!selfAttacked && opponentAttacked) {
+        winner = 'opponent';
+      } else if (selfDpr > opponentDpr) {
+        winner = 'self';
+      } else if (opponentDpr > selfDpr) {
+        winner = 'opponent';
+      } else if (
+        Number.isFinite(selfDamage) &&
+        Number.isFinite(opponentDamage) &&
+        selfDamage !== opponentDamage
+      ) {
+        winner =
+          selfDamage > opponentDamage
+            ? 'self'
+            : 'opponent';
+      }
+
+      if (!winner) {
+        return;
+      }
+
+      if (winner === 'self') {
+        selfWins++;
+      } else {
+        opponentWins++;
+      }
+
+      rows.push({
+        date: day.date,
+        boss: day.boss,
+        bossCode: day.bossCode,
+        selfDpr: selfDpr,
+        opponentDpr: opponentDpr,
+        selfDamage: selfDamage,
+        opponentDamage: opponentDamage,
+        winner: winner
+      });
+    });
+
+    return {
+      selfWins: selfWins,
+      opponentWins: opponentWins,
+      meetings: rows.length,
+      totalWins: selfWins + opponentWins,
+      rows: rows
+    };
+  }
+
+
+  function openGuildPlayerPicker() {
+    if (!guildData) {
+      return;
+    }
+
+    const content =
+      document.createElement('div');
+
+    content.className =
+      'guild-player-picker-list';
+
+    (guildData.players || [])
+      .filter(function(name) {
+        return name !== guildData.player;
+      })
+      .forEach(function(name) {
+        const button =
+          document.createElement('button');
+
+        button.type = 'button';
+        button.className =
+          'guild-player-picker-button ' +
+          (name === h2hOpponent ? 'active' : '');
+        button.textContent = name;
+
+        button.addEventListener(
+          'click',
+          function() {
+            h2hOpponent = name;
+            closeGuildSheet();
+            renderGuildH2hCards();
+          }
+        );
+
+        content.appendChild(button);
+      });
+
+    openGuildSheet(
+      'Choose opponent',
+      'Guild members',
+      content
+    );
+  }
+
+
+  function openH2hResultsSheet() {
+    const result = calculateCurrentH2h();
+    const content =
+      document.createElement('div');
+
+    content.className =
+      'h2h-result-list';
+
+    if (!result.rows.length) {
+      content.innerHTML =
+        '<p class="guild-loading-text">No matchup days match these filters.</p>';
+    }
+
+    result.rows.forEach(function(row) {
+      const item =
+        document.createElement('div');
+
+      item.className =
+        'h2h-result-row';
+
+      item.innerHTML = `
+        <div class="h2h-result-date">
+          ${escapeHtml(compactDate(row.date))}
+          <span>${escapeHtml(row.bossCode || row.boss || '')}</span>
+        </div>
+        <div class="h2h-result-values">
+          <div class="${row.winner === 'self' ? 'winner' : ''}">
+            <strong>${Number.isFinite(row.selfDpr) ? formatDpr(row.selfDpr) : '—'}</strong>
+            <span>${escapeHtml(capitalize(guildData.player))}</span>
+          </div>
+          <span>vs</span>
+          <div class="${row.winner === 'opponent' ? 'winner' : ''}">
+            <strong>${Number.isFinite(row.opponentDpr) ? formatDpr(row.opponentDpr) : '—'}</strong>
+            <span>${escapeHtml(h2hOpponent)}</span>
+          </div>
+        </div>
+      `;
+
+      content.appendChild(item);
+    });
+
+    openGuildSheet(
+      capitalize(guildData.player) +
+        ' ' + result.selfWins +
+        ' — ' + result.opponentWins +
+        ' ' + h2hOpponent,
+      (
+        h2hPeriodDays() +
+        ' days · ' +
+        (h2hBossCode === 'ALL' ? 'All bosses' : h2hBossCode)
+      ),
+      content
+    );
+  }
+
+
+  function renderGuildRecords() {
+    const container =
+      document.getElementById(
+        'guildRecordsCard'
+      );
+
+    if (!container) {
+      return;
+    }
+
+    if (!guildData) {
+      container.innerHTML =
+        '<p class="guild-loading-text">Guild records are loading…</p>';
+      return;
+    }
+
+    const bossButtons = [
+      ['ALL', 'All'],
+      ['TK', 'TK'],
+      ['FD', 'FD'],
+      ['FDe', 'FDe'],
+      ['Snek', 'Snek'],
+      ['SG', 'SG'],
+      ['CM', 'CM'],
+      ['SM', 'SM']
+    ];
+
+    const records =
+      guildData.records &&
+      guildData.records[guildRecordMetric] &&
+      guildData.records[guildRecordMetric][guildRecordBoss]
+        ? guildData.records[guildRecordMetric][guildRecordBoss]
+        : [];
+
+    container.innerHTML = `
+      <div class="guild-control-row guild-metric-tabs">
+        ${createGuildControlButtonHtml(
+          'DPR',
+          'guildRecordMetric',
+          'dpr',
+          guildRecordMetric === 'dpr'
+        )}
+        ${createGuildControlButtonHtml(
+          'Damage',
+          'guildRecordMetric',
+          'damage',
+          guildRecordMetric === 'damage'
+        )}
+      </div>
+      <div class="guild-control-row guild-boss-tabs">
+        ${bossButtons.map(function(item) {
+          return createGuildControlButtonHtml(
+            item[1],
+            'guildRecordBoss',
+            item[0],
+            guildRecordBoss === item[0]
+          );
+        }).join('')}
+      </div>
+      <div class="guild-record-list">
+        ${records.map(function(record, index) {
+          const position = index + 1;
+          const podium =
+            position <= 3
+              ? ' podium-' + position
+              : '';
+          const selfClass =
+            record.name === guildData.player
+              ? ' is-self'
+              : '';
+
+          return `
+            <div class="guild-record-row${podium}${selfClass}">
+              <span class="record-leaderboard-position">${position}</span>
+              <div class="guild-record-player">
+                <strong>${escapeHtml(record.name)}</strong>
+                <span>
+                  ${escapeHtml(record.bossCode || '')}
+                  · ${escapeHtml(compactDate(record.date))}
+                </span>
+              </div>
+              <strong class="guild-record-value">
+                ${guildRecordMetric === 'damage'
+                  ? formatDamage(record.value)
+                  : formatDpr(record.value)}
+              </strong>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    bindGuildControlButtons(container);
+    animateFreshSelection(
+      container,
+      '.guild-choice-button.active'
+    );
+    animateFreshPanel(
+      container.querySelector('.guild-record-list')
+    );
+  }
+
+
+  function parseCompactApiDate(value) {
+    const text = String(value || '').trim();
+    const match = text.match(
+      /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/
+    );
+
+    if (!match) {
+      return null;
+    }
+
+    let year = Number(match[3]);
+
+    if (year < 100) {
+      year += 2000;
+    }
+
+    return new Date(
+      year,
+      Number(match[2]) - 1,
+      Number(match[1])
+    );
+  }
+
+
+  function initialiseGuildBottomSheet() {
+    const modal =
+      document.getElementById('guildSheet');
+    const panel =
+      document.getElementById('guildSheetPanel');
+    const handle =
+      document.getElementById('guildSheetDragHandle');
+    const header =
+      modal
+        ? modal.querySelector('.guild-sheet-header')
+        : null;
+
+    if (!modal || !panel) {
+      return;
+    }
+
+    const beginDrag = function(event) {
+      if (
+        event.pointerType === 'mouse' &&
+        event.button !== 0
+      ) {
+        return;
+      }
+
+      if (
+        event.target &&
+        event.target.closest &&
+        event.target.closest('.guild-sheet-close')
+      ) {
+        return;
+      }
+
+      guildSheetDragState = {
+        pointerId: event.pointerId,
+        startY: event.clientY,
+        currentY: event.clientY,
+        startTime: performance.now()
+      };
+
+      panel.classList.add('is-dragging');
+
+      try {
+        panel.setPointerCapture(event.pointerId);
+      } catch (error) {}
+    };
+
+    const moveDrag = function(event) {
+      if (
+        !guildSheetDragState ||
+        event.pointerId !== guildSheetDragState.pointerId
+      ) {
+        return;
+      }
+
+      const delta = Math.max(
+        0,
+        event.clientY - guildSheetDragState.startY
+      );
+
+      guildSheetDragState.currentY = event.clientY;
+      panel.style.setProperty(
+        '--sheet-drag-y',
+        delta + 'px'
+      );
+      modal.style.setProperty(
+        '--sheet-backdrop-alpha',
+        String(
+          0.68 *
+          Math.max(
+            0,
+            1 - delta / Math.max(panel.offsetHeight, 1)
+          )
+        )
+      );
+    };
+
+    const endDrag = function(event) {
+      if (
+        !guildSheetDragState ||
+        event.pointerId !== guildSheetDragState.pointerId
+      ) {
+        return;
+      }
+
+      const delta = Math.max(
+        0,
+        guildSheetDragState.currentY -
+        guildSheetDragState.startY
+      );
+      const elapsed = Math.max(
+        1,
+        performance.now() -
+        guildSheetDragState.startTime
+      );
+      const velocity = delta / elapsed;
+
+      guildSheetDragState = null;
+      panel.classList.remove('is-dragging');
+
+      try {
+        panel.releasePointerCapture(event.pointerId);
+      } catch (error) {}
+
+      if (delta > 90 || velocity > 0.65) {
+        closeGuildSheet();
+        return;
+      }
+
+      panel.style.setProperty('--sheet-drag-y', '0px');
+      modal.style.removeProperty('--sheet-backdrop-alpha');
+    };
+
+    [handle, header]
+      .filter(Boolean)
+      .forEach(function(target) {
+        target.addEventListener('pointerdown', beginDrag);
+      });
+
+    panel.addEventListener('pointermove', moveDrag);
+    panel.addEventListener('pointerup', endDrag);
+    panel.addEventListener('pointercancel', endDrag);
+  }
+
+
+  function openGuildSheet(title, eyebrow, contentNode) {
+    const modal =
+      document.getElementById('guildSheet');
+    const panel =
+      document.getElementById('guildSheetPanel');
+    const content =
+      document.getElementById('guildSheetContent');
+
+    if (!modal || !panel || !content) {
+      return;
+    }
+
+    setText('guildSheetTitle', title || 'Guild');
+    setText('guildSheetEyebrow', eyebrow || 'Guild');
+    content.innerHTML = '';
+
+    if (contentNode) {
+      content.appendChild(contentNode);
+    }
+
+    if (guildSheetHideTimer !== null) {
+      clearTimeout(guildSheetHideTimer);
+      guildSheetHideTimer = null;
+    }
+
+    panel.style.setProperty('--sheet-drag-y', '0px');
+    panel.classList.remove('is-dragging');
+    modal.style.removeProperty('--sheet-backdrop-alpha');
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() {
+        modal.classList.add('is-open');
+      });
+    });
+  }
+
+
+  function closeGuildSheet() {
+    const modal =
+      document.getElementById('guildSheet');
+    const panel =
+      document.getElementById('guildSheetPanel');
+
+    if (!modal || modal.classList.contains('hidden')) {
+      return;
+    }
+
+    guildSheetDragState = null;
+
+    if (panel) {
+      panel.classList.remove('is-dragging');
+      panel.style.setProperty('--sheet-drag-y', '0px');
+    }
+
+    modal.classList.remove('is-open');
+    modal.style.removeProperty('--sheet-backdrop-alpha');
+
+    const finish = function() {
+      modal.classList.add('hidden');
+      modal.setAttribute('aria-hidden', 'true');
+
+      const leaderboardModal =
+        document.getElementById('guildLeaderboardModal');
+      const streakModal =
+        document.getElementById('streakModal');
+
+      if (
+        (!leaderboardModal || leaderboardModal.classList.contains('hidden')) &&
+        (!streakModal || streakModal.classList.contains('hidden'))
+      ) {
+        document.body.classList.remove('modal-open');
+      }
+    };
+
+    if (prefersReducedMotion()) {
+      finish();
+      return;
+    }
+
+    guildSheetHideTimer = setTimeout(function() {
+      finish();
+      guildSheetHideTimer = null;
+    }, 360);
+  }
+
+
+  function handleGuildSheetBackdrop(event) {
+    if (
+      event.target &&
+      event.target.id === 'guildSheet'
+    ) {
+      closeGuildSheet();
+    }
+  }
 
   function initialiseStreakBottomSheet() {
     const modal =
@@ -4283,7 +6155,8 @@
     );
 
     document.body.classList.remove(
-      'boss-view-active'
+      'boss-view-active',
+      'guild-view-active'
     );
 
     showOnlyView('homeView');
@@ -4312,7 +6185,8 @@
     currentView = 'bosses';
 
     document.body.classList.remove(
-      'home-view-active'
+      'home-view-active',
+      'guild-view-active'
     );
 
     document.body.classList.add(
@@ -4337,15 +6211,48 @@
   }
 
 
+  function showGuildView() {
+    currentView = 'guild';
+
+    document.body.classList.remove(
+      'home-view-active',
+      'boss-view-active'
+    );
+    document.body.classList.add(
+      'guild-view-active'
+    );
+
+    showOnlyView('guildView');
+    setActiveNavigation('guild');
+
+    animateThemeTo(
+      {
+        accent: '#ff4057',
+        soft: 'rgba(255, 64, 87, 0.18)',
+        glow: 'rgba(255, 64, 87, 0.32)',
+        surface: 'rgba(255, 64, 87, 0.08)'
+      },
+      360
+    );
+
+    if (guildData) {
+      renderGuildPage();
+    } else {
+      loadGuildDataInBackground(false);
+      renderGuildPage();
+    }
+
+    scrollPageToTop();
+  }
+
+
   function showProgressView() {
     currentView = 'progress';
 
     document.body.classList.remove(
-      'home-view-active'
-    );
-
-    document.body.classList.remove(
-      'boss-view-active'
+      'home-view-active',
+      'boss-view-active',
+      'guild-view-active'
     );
 
     showOnlyView('progressView');
@@ -4361,11 +6268,9 @@
     currentView = 'records';
 
     document.body.classList.remove(
-      'home-view-active'
-    );
-
-    document.body.classList.remove(
-      'boss-view-active'
+      'home-view-active',
+      'boss-view-active',
+      'guild-view-active'
     );
 
     showOnlyView('recordsView');
@@ -4381,15 +6286,42 @@
     [
       'homeView',
       'bossesView',
+      'guildView',
       'progressView',
       'recordsView'
     ].forEach(function(id) {
-      document
-        .getElementById(id)
-        .classList.toggle(
-          'hidden',
-          id !== viewId
+      const element =
+        document.getElementById(id);
+
+      const isTarget = id === viewId;
+
+      element.classList.toggle(
+        'hidden',
+        !isTarget
+      );
+
+      if (
+        isTarget &&
+        !prefersReducedMotion()
+      ) {
+        element.animate(
+          [
+            {
+              opacity: 0.35,
+              transform: 'translateY(8px) scale(0.995)'
+            },
+            {
+              opacity: 1,
+              transform: 'translateY(0) scale(1)'
+            }
+          ],
+          {
+            duration: 240,
+            easing:
+              'cubic-bezier(0.22, 1, 0.36, 1)'
+          }
         );
+      }
     });
   }
 
@@ -4398,9 +6330,18 @@
     const buttons = {
       home: 'homeNavButton',
       bosses: 'bossesNavButton',
+      guild: 'guildNavButton',
       progress: 'progressNavButton',
       records: 'recordsNavButton'
     };
+
+    const order = [
+      'home',
+      'bosses',
+      'guild',
+      'progress',
+      'records'
+    ];
 
     Object.keys(buttons)
       .forEach(function(key) {
@@ -4411,6 +6352,19 @@
             key === view
           );
       });
+
+    const nav =
+      document.getElementById('bottomNav');
+
+    if (nav) {
+      nav.style.setProperty(
+        '--nav-index',
+        String(
+          Math.max(0, order.indexOf(view))
+        )
+      );
+      nav.dataset.activeView = view;
+    }
   }
 
 

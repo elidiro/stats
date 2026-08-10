@@ -117,6 +117,38 @@
         >
           <div
             class="home-boss-slide"
+            data-boss-slide="yesterday"
+          >
+            <section class="card today-card yesterday-card boss-swipe-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">
+                    Yesterday’s boss
+                  </p>
+
+                  <h2 id="yesterdayBossName">—</h2>
+
+                  <p
+                    id="yesterdayBossDate"
+                    class="yesterday-boss-date"
+                  ></p>
+                </div>
+
+                <div
+                  id="yesterdayBossVisual"
+                  class="today-boss-visual"
+                ></div>
+              </div>
+
+              <div
+                id="yesterdayPerformanceGrid"
+                class="performance-grid yesterday-performance-grid"
+              ></div>
+            </section>
+          </div>
+
+          <div
+            class="home-boss-slide"
             data-boss-slide="today"
           >
             <section class="card today-card boss-swipe-card">
@@ -174,52 +206,26 @@
               </div>
             </section>
           </div>
-
-          <div
-            class="home-boss-slide"
-            data-boss-slide="yesterday"
-          >
-            <section class="card today-card yesterday-card boss-swipe-card">
-              <div class="section-heading">
-                <div>
-                  <p class="eyebrow">
-                    Yesterday’s boss
-                  </p>
-
-                  <h2 id="yesterdayBossName">—</h2>
-
-                  <p
-                    id="yesterdayBossDate"
-                    class="yesterday-boss-date"
-                  ></p>
-                </div>
-
-                <div
-                  id="yesterdayBossVisual"
-                  class="today-boss-visual"
-                ></div>
-              </div>
-
-              <div
-                id="yesterdayPerformanceGrid"
-                class="performance-grid yesterday-performance-grid"
-              ></div>
-            </section>
-          </div>
         </div>
 
         <div
-          class="boss-carousel-indicators"
-          aria-hidden="true"
+          class="boss-carousel-indicators labelled-carousel-indicators"
+          aria-label="Choose today or yesterday"
         >
-          <span
-            id="todayCarouselDot"
-            class="boss-carousel-dot active"
-          ></span>
-          <span
+          <button
             id="yesterdayCarouselDot"
-            class="boss-carousel-dot"
-          ></span>
+            class="boss-carousel-dot boss-carousel-label"
+            type="button"
+            onclick="scrollHomeBossCarousel('yesterday')"
+          >YTD</button>
+          <button
+            id="todayCarouselDot"
+            class="boss-carousel-dot boss-carousel-label active"
+            type="button"
+            onclick="scrollHomeBossCarousel('today')"
+          >TDY</button>
+        </div>
+
         </div>
 
         <section class="section-block">
@@ -277,6 +283,20 @@
               ></svg>
             </div>
           </div>
+        </section>
+
+        <section class="section-block home-h2h-section">
+          <div class="section-title-row">
+            <div>
+              <p class="eyebrow">Guild rivalry</p>
+              <h2>Head to head</h2>
+            </div>
+          </div>
+
+          <div
+            id="homeH2hCard"
+            class="h2h-card"
+          ></div>
         </section>
 
         <section class="section-block">
@@ -516,6 +536,60 @@
         </section>
       </div>
 
+      <!-- GUILD -->
+
+      <div
+        id="guildView"
+        class="page-view hidden"
+      >
+        <section class="page-heading-block guild-page-heading">
+          <p class="eyebrow">HoeswithBows</p>
+          <h2>Guild</h2>
+        </section>
+
+        <section class="guild-feature-section">
+          <div class="section-title-row">
+            <div>
+              <p class="eyebrow">Latest and rolling averages</p>
+              <h2>Guild leaderboard</h2>
+            </div>
+          </div>
+
+          <div
+            id="guildLeaderboardCard"
+            class="guild-leaderboard-card"
+          ></div>
+        </section>
+
+        <section class="guild-feature-section">
+          <div class="section-title-row">
+            <div>
+              <p class="eyebrow">Your rivalry</p>
+              <h2>Head to head</h2>
+            </div>
+          </div>
+
+          <div
+            id="guildH2hCard"
+            class="h2h-card"
+          ></div>
+        </section>
+
+        <section class="guild-feature-section">
+          <div class="section-title-row">
+            <div>
+              <p class="eyebrow">One personal best per player</p>
+              <h2>Guild boss records</h2>
+            </div>
+          </div>
+
+          <div
+            id="guildRecordsCard"
+            class="guild-records-card"
+          ></div>
+        </section>
+      </div>
+
       <!-- PROGRESS -->
 
       <div
@@ -660,7 +734,7 @@
 
         <section class="records-section">
           <div class="section-title-row">
-            <h2>Guild finishes</h2>
+            <h2>DPR Rank Tally</h2>
           </div>
 
           <div
@@ -671,7 +745,7 @@
 
         <section class="records-section">
           <div class="section-title-row">
-            <h2>DPR result counts</h2>
+            <h2>DPR Count</h2>
           </div>
 
           <div
@@ -781,10 +855,94 @@
       </div>
     </div>
 
+    <div
+      id="guildSheet"
+      class="streak-modal guild-sheet hidden"
+      role="dialog"
+      aria-hidden="true"
+      aria-modal="true"
+      aria-labelledby="guildSheetTitle"
+      onclick="handleGuildSheetBackdrop(event)"
+    >
+      <div
+        id="guildSheetPanel"
+        class="streak-modal-panel guild-sheet-panel"
+      >
+        <div
+          id="guildSheetDragHandle"
+          class="streak-modal-drag-handle"
+          aria-hidden="true"
+        >
+          <span></span>
+        </div>
+
+        <div class="streak-modal-header guild-sheet-header">
+          <div>
+            <p
+              id="guildSheetEyebrow"
+              class="eyebrow"
+            >Guild</p>
+            <h2 id="guildSheetTitle"></h2>
+          </div>
+          <button
+            type="button"
+            class="streak-modal-close guild-sheet-close"
+            aria-label="Close guild details"
+            onclick="closeGuildSheet()"
+          >×</button>
+        </div>
+
+        <div
+          id="guildSheetContent"
+          class="streak-modal-results guild-sheet-content"
+        ></div>
+      </div>
+    </div>
+
+    <div
+      id="guildLeaderboardModal"
+      class="guild-leaderboard-modal hidden"
+      role="dialog"
+      aria-hidden="true"
+      aria-modal="true"
+      aria-labelledby="guildLeaderboardModalTitle"
+    >
+      <div class="guild-leaderboard-modal-shell">
+        <header class="guild-leaderboard-modal-header">
+          <div>
+            <p class="eyebrow">Full guild</p>
+            <h2 id="guildLeaderboardModalTitle">Leaderboard</h2>
+          </div>
+          <button
+            type="button"
+            class="streak-modal-close"
+            aria-label="Close full leaderboard"
+            onclick="closeGuildLeaderboardModal()"
+          >×</button>
+        </header>
+
+        <div
+          id="guildLeaderboardModalControls"
+          class="guild-leaderboard-modal-controls"
+        ></div>
+
+        <div
+          id="guildLeaderboardModalList"
+          class="guild-leaderboard-modal-list"
+        ></div>
+      </div>
+    </div>
+
     <nav
+      id="bottomNav"
       class="bottom-nav"
       aria-label="Main navigation"
     >
+      <span
+        class="nav-glider"
+        aria-hidden="true"
+      ></span>
+
       <button
         id="homeNavButton"
         class="nav-item active"
@@ -803,6 +961,16 @@
       >
         <span>◉</span>
         Bosses
+      </button>
+
+      <button
+        id="guildNavButton"
+        class="nav-item"
+        type="button"
+        onclick="showGuildView()"
+      >
+        <span class="shield-icon" aria-hidden="true"></span>
+        Guild
       </button>
 
       <button

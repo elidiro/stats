@@ -1,4 +1,4 @@
-const CACHE_NAME = 'elidir-stats-shell-v3';
+const CACHE_NAME = 'elidir-stats-shell-v4';
 
 const CORE_FILES = [
   './',
@@ -63,46 +63,53 @@ self.addEventListener('fetch', function(event) {
   const requestUrl = new URL(request.url);
   const currentUrl = new URL(self.location.href);
 
-  /*
-   * Leave the Apps Script API and all other cross-origin
-   * requests completely alone. This keeps stats live.
-   */
+  /* Apps Script remains live and is never intercepted. */
   if (requestUrl.origin !== currentUrl.origin) {
     return;
   }
 
   /*
-   * Network-first means normal online use always checks GitHub
-   * for the newest frontend file. Cached files are only used if
-   * the network fails.
+   * Stale-while-revalidate: return the local app shell instantly
+   * when available, while refreshing the cached copy in the
+   * background for the next launch.
    */
   event.respondWith(
-    fetch(request)
-      .then(function(response) {
-        if (
-          !response ||
-          response.status !== 200 ||
-          response.type === 'opaque'
-        ) {
-          return response;
-        }
+    caches.match(request)
+      .then(function(cachedResponse) {
+        const networkResponse = fetch(request)
+          .then(function(response) {
+            if (
+              response &&
+              response.status === 200 &&
+              response.type !== 'opaque'
+            ) {
+              const responseCopy = response.clone();
 
-        const responseCopy = response.clone();
+              event.waitUntil(
+                caches.open(CACHE_NAME)
+                  .then(function(cache) {
+                    return cache.put(
+                      request,
+                      responseCopy
+                    );
+                  })
+              );
+            }
 
-        caches
-          .open(CACHE_NAME)
-          .then(function(cache) {
-            cache.put(request, responseCopy);
+            return response;
+          })
+          .catch(function() {
+            return null;
           });
 
-        return response;
-      })
-      .catch(function() {
-        return caches
-          .match(request)
-          .then(function(cachedResponse) {
-            if (cachedResponse) {
-              return cachedResponse;
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+
+        return networkResponse
+          .then(function(response) {
+            if (response) {
+              return response;
             }
 
             if (request.mode === 'navigate') {
