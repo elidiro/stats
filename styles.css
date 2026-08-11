@@ -3661,3 +3661,497 @@ body.guild-view-active {
 .podium-3 .guild-leaderboard-position {
   color: #da9156;
 }
+
+/* ==========================================================
+ * AUGUST 11 MOBILE SPACING + CLASS DISTRIBUTION POLISH
+ * ========================================================== */
+
+/*
+ * Horizontal selector rows need their own breathing room.
+ * Their glow/active state previously sat too close to an
+ * overflow boundary, which visually clipped the top edge.
+ */
+.milestone-tabs,
+.class-period-tabs,
+.guild-control-row {
+  box-sizing: border-box;
+  padding: 7px 5px 8px;
+  margin-right: -5px;
+  margin-left: -5px;
+  scroll-padding-inline: 5px;
+}
+
+.milestone-tabs,
+.class-period-tabs {
+  margin-top: -2px;
+}
+
+.guild-control-row {
+  margin-top: -3px;
+}
+
+.guild-period-tabs,
+.guild-boss-tabs {
+  margin-top: 2px;
+}
+
+.milestone-tab,
+.class-period-tab,
+.guild-choice-button {
+  min-height: 36px;
+  padding: 9px 13px;
+}
+
+/* Keep active controls fully inside their scroll rows. */
+.milestone-tab.active,
+.class-period-tab.active,
+.guild-choice-button.active {
+  transform: scale(1.015);
+}
+
+/* More air above selector groups that live at the top of cards. */
+.milestone-selector-card {
+  padding-top: 20px;
+}
+
+.guild-leaderboard-card,
+.h2h-card,
+.guild-records-card {
+  padding-top: 20px;
+}
+
+.guild-leaderboard-modal-controls {
+  padding-top: 2px;
+}
+
+/* The graph metric row also gets a little extra top clearance. */
+.progress-chart-tabs {
+  margin-top: 5px;
+}
+
+/*
+ * Boss filters retain the same control language while carrying
+ * their own boss colour even when not selected. The selected
+ * boss gets the stronger glow.
+ */
+.guild-choice-button.boss-colour-choice {
+  color: color-mix(
+    in srgb,
+    var(--choice-colour) 76%,
+    #ffffff 24%
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--choice-colour) 38%,
+    transparent
+  );
+  background: color-mix(
+    in srgb,
+    var(--choice-colour) 7%,
+    var(--surface-raised)
+  );
+}
+
+.guild-choice-button.boss-colour-choice.active {
+  color: var(--choice-colour);
+  border-color: var(--choice-colour);
+  background: var(--choice-soft);
+  box-shadow:
+    0 0 17px color-mix(
+      in srgb,
+      var(--choice-colour) 28%,
+      transparent
+    ),
+    inset 0 0 13px color-mix(
+      in srgb,
+      var(--choice-colour) 14%,
+      transparent
+    );
+}
+
+/*
+ * Class distribution: use the empty horizontal space more
+ * effectively and align every label to the vertical centre of
+ * its corresponding colour segment.
+ */
+.class-distribution-card {
+  min-height: 510px;
+  padding: 18px 20px 22px;
+}
+
+.class-distribution-layout {
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 24px;
+  min-height: 390px;
+}
+
+.class-distribution-vertical-bar {
+  width: 70px;
+  min-height: 390px;
+  border-radius: 21px;
+}
+
+.class-distribution-vertical-legend {
+  position: relative;
+  display: block;
+  min-height: 390px;
+  margin-top: 0;
+}
+
+.class-distribution-vertical-item {
+  position: absolute;
+  top: clamp(
+    22px,
+    var(--class-centre, 50%),
+    calc(100% - 22px)
+  );
+  right: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: 11px minmax(0, 1fr) auto auto;
+  gap: 9px;
+  align-items: center;
+  min-height: 40px;
+  max-height: none;
+  overflow: visible;
+  transform: translateY(-50%);
+  opacity: 1;
+}
+
+.class-distribution-vertical-item::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -18px;
+  width: 10px;
+  height: 1px;
+  background: color-mix(
+    in srgb,
+    var(--class-colour, #ffffff) 45%,
+    transparent
+  );
+  transform: translateY(-50%);
+}
+
+.class-distribution-vertical-item.is-zero {
+  top: var(--class-centre, 50%);
+  min-height: 0;
+  max-height: none;
+  opacity: 0;
+  transform:
+    translateY(-50%)
+    translateX(10px);
+}
+
+.class-distribution-swatch {
+  width: 11px;
+  height: 11px;
+}
+
+.class-distribution-name {
+  overflow: visible;
+  color: #d7d9e2;
+  font-size: 15px;
+  font-weight: 780;
+  letter-spacing: -0.01em;
+  text-overflow: clip;
+}
+
+.class-distribution-item strong {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.class-distribution-item small {
+  min-width: 16px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  text-align: right;
+}
+
+@media (max-width: 420px) {
+  .milestone-tabs,
+  .class-period-tabs,
+  .guild-control-row {
+    padding-top: 8px;
+    padding-bottom: 9px;
+  }
+
+  .milestone-tab,
+  .class-period-tab,
+  .guild-choice-button {
+    min-height: 36px;
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .class-distribution-card {
+    padding-right: 17px;
+    padding-left: 17px;
+  }
+
+  .class-distribution-layout {
+    grid-template-columns: 80px minmax(0, 1fr);
+    gap: 20px;
+    min-height: 400px;
+  }
+
+  .class-distribution-vertical-bar {
+    width: 68px;
+    min-height: 400px;
+  }
+
+  .class-distribution-vertical-legend {
+    min-height: 400px;
+  }
+
+  .class-distribution-name {
+    font-size: 14px;
+  }
+
+  .class-distribution-item strong {
+    font-size: 13px;
+  }
+
+  .class-distribution-item small {
+    font-size: 11px;
+  }
+}
+
+/* Keep class labels travelling with their bar segments when the period changes. */
+.class-distribution-vertical-item {
+  transition:
+    top 620ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 360ms ease,
+    transform 360ms ease;
+}
+
+/* ==========================================================
+ * MOBILE CONTROL SPACING + CLASS DISTRIBUTION REFINEMENT
+ * ========================================================== */
+
+/*
+ * Control groups use real grid space instead of horizontally
+ * clipping their glow/shadow at the edge of a scroll container.
+ * This is deliberately mobile-first because the installed PWA
+ * is primarily used on a phone.
+ */
+.milestone-selector-card {
+  padding: 21px 17px 20px;
+}
+
+.milestone-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  overflow: visible;
+  padding: 7px 4px 10px;
+  margin: -4px 0 0;
+}
+
+.class-period-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  overflow: visible;
+  padding: 7px 4px 10px;
+  margin: -4px 0 15px;
+}
+
+.milestone-tab,
+.class-period-tab,
+.guild-choice-button {
+  width: 100%;
+  min-height: 35px;
+  padding: 8px 6px;
+}
+
+.milestone-tab.active,
+.class-period-tab.active,
+.guild-choice-button.active {
+  transform: scale(1.012);
+}
+
+/* Give every guild control enough breathing room for its glow. */
+.guild-leaderboard-card,
+.h2h-card,
+.guild-records-card {
+  padding: 21px 16px 17px;
+}
+
+.guild-control-row {
+  overflow: visible;
+  padding: 7px 4px 9px;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.guild-metric-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.guild-period-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 1px;
+}
+
+.h2h-period-tabs {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.guild-boss-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 1px;
+}
+
+.guild-choice-button {
+  min-width: 0;
+  font-size: 10px;
+}
+
+/* Boss buttons inherit the same colours as their page themes. */
+.guild-choice-button.boss-coded-choice {
+  color: var(--choice-accent);
+}
+
+.guild-choice-button.active {
+  color: var(--choice-accent, var(--accent));
+  border-color: var(--choice-accent, var(--accent));
+  background: var(--choice-soft, var(--accent-soft));
+  box-shadow:
+    0 0 14px var(--choice-soft, var(--accent-soft)),
+    inset 0 0 12px var(--choice-soft, var(--accent-soft));
+}
+
+/*
+ * The class distribution now uses more of the available mobile
+ * screen: a thicker/taller bar and large labels positioned at the
+ * vertical centre of the matching coloured segment.
+ */
+.class-distribution-card {
+  min-height: 585px;
+  padding: 21px 18px 24px;
+  overflow: hidden;
+}
+
+.class-distribution-layout {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 24px;
+  align-items: stretch;
+  min-height: 465px;
+}
+
+.class-distribution-vertical-bar {
+  width: 74px;
+  height: 465px;
+  min-height: 465px;
+  margin: 0 auto;
+  border-radius: 20px;
+}
+
+.class-distribution-vertical-legend {
+  position: relative;
+  display: block;
+  min-height: 465px;
+  margin-top: 0;
+}
+
+.class-distribution-vertical-item {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: grid;
+  grid-template-columns: 11px minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 42px;
+  max-height: none;
+  padding: 0;
+  overflow: visible;
+  transform: translateY(-50%);
+  transition:
+    top 620ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 360ms ease,
+    transform 360ms ease;
+}
+
+.class-distribution-vertical-item.is-zero {
+  opacity: 0;
+  min-height: 42px;
+  max-height: none;
+  transform: translate(10px, -50%);
+  pointer-events: none;
+}
+
+.class-distribution-vertical-item .class-distribution-swatch {
+  width: 11px;
+  height: 11px;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--class-colour) 38%, transparent);
+}
+
+.class-distribution-vertical-item .class-distribution-name {
+  overflow: visible;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.class-distribution-vertical-item strong {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.class-distribution-vertical-item small {
+  min-width: 16px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+  text-align: right;
+}
+
+@media (max-width: 380px) {
+  .class-distribution-card {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+
+  .class-distribution-layout {
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: 17px;
+  }
+
+  .class-distribution-vertical-bar {
+    width: 68px;
+  }
+
+  .class-distribution-vertical-item .class-distribution-name,
+  .class-distribution-vertical-item strong {
+    font-size: 14px;
+  }
+
+  .guild-choice-button,
+  .class-period-tab,
+  .milestone-tab {
+    font-size: 9.5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .class-distribution-vertical-item {
+    transition: none !important;
+  }
+}

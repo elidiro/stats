@@ -219,6 +219,20 @@
     }
   };
 
+  const CLASS_DISTRIBUTION_COLOURS = {
+    'Common': '#9aa1ad',
+    'Uncommon': '#4ed07d',
+    'Rare': '#72cfff',
+    'Epic': '#b85cff',
+    'Legend': '#d6a84f',
+    'Mythic': '#ef4444',
+    'Chaotic': '#8f2c68',
+    'Hoely': '#eadfbd',
+    'M Hoely': '#f7edcf',
+    'God Hoe': '#ffffff'
+  };
+
+
   let currentView = 'home';
   let currentBossCode = 'TK';
 
@@ -3690,6 +3704,24 @@
   }
 
 
+
+  function getClassDistributionColour(name, fallback) {
+    const colours = {
+      'Common': '#9aa0aa',
+      'Uncommon': '#52d273',
+      'Rare': '#63c6ff',
+      'Epic': '#b248ff',
+      'Legend': '#d8ad4f',
+      'Mythic': '#ff4d4d',
+      'Chaotic': '#8f2f6f',
+      'Hoely': '#f1e2bd',
+      'M Hoely': '#f7eed9',
+      'God Hoe': '#ffffff'
+    };
+
+    return colours[name] || fallback || '#ffffff';
+  }
+
   function renderClassDistribution(dataSets) {
     const container =
       document.getElementById(
@@ -3761,6 +3793,11 @@
       '.class-period-tab.active'
     );
 
+    /*
+     * The backend returns Common -> God Hoe.
+     * Reverse it so God Hoe is always at the top
+     * of the vertical bar and Common is at the bottom.
+     */
     const items =
       (data[activeClassPeriod] || [])
         .slice()
@@ -3792,7 +3829,32 @@
         ] = row;
       });
 
+    let cumulativePercentage = 0;
+
     items.forEach(function(item) {
+      const percentage =
+        Math.max(
+          0,
+          Math.min(
+            100,
+            Number(item.percentage || 0)
+          )
+        );
+
+      const colour =
+        getClassDistributionColour(
+          item.name,
+          item.colour
+        );
+
+      const centrePercentage =
+        cumulativePercentage +
+        (percentage / 2);
+
+      if (item.count > 0) {
+        cumulativePercentage += percentage;
+      }
+
       let segment =
         existingSegments[item.name];
 
@@ -3802,13 +3864,17 @@
         segment.dataset.className = item.name;
         segment.className =
           'class-distribution-vertical-segment';
-        segment.style.background = item.colour;
         bar.appendChild(segment);
       }
 
+      segment.style.background = colour;
+
       requestAnimationFrame(function() {
         segment.style.height =
-          Math.max(0, item.percentage) + '%';
+          item.count > 0
+            ? percentage + '%'
+            : '0%';
+
         segment.style.opacity =
           item.count > 0 ? '1' : '0';
       });
@@ -3823,7 +3889,6 @@
         row.innerHTML = `
           <span
             class="class-distribution-swatch"
-            style="background:${item.colour}"
           ></span>
           <span class="class-distribution-name"></span>
           <strong>0.0%</strong>
@@ -3832,9 +3897,29 @@
         legend.appendChild(row);
       }
 
+      row.style.setProperty(
+        '--class-colour',
+        colour
+      );
+
+      row.querySelector(
+        '.class-distribution-swatch'
+      ).style.background = colour;
+
       row.querySelector(
         '.class-distribution-name'
       ).textContent = item.name;
+
+      if (item.count > 0) {
+        row.style.top =
+          Math.max(
+            3,
+            Math.min(
+              97,
+              centrePercentage
+            )
+          ) + '%';
+      }
 
       animateNumericText(
         row.querySelector('strong'),
@@ -3859,12 +3944,6 @@
     });
   }
 
-
-  /**
-   * ==========================================================
-   * FULL RECORDS PAGE
-   * ==========================================================
-   */
 
   function loadRecordsPage(forceRefresh) {
     if (recordsData && !forceRefresh) {
@@ -4842,12 +4921,38 @@
     value,
     selected
   ) {
+    const isBossControl =
+      /Boss$/.test(String(group || ''));
+
+    const bossMeta =
+      isBossControl &&
+      BOSS_META[value]
+        ? BOSS_META[value]
+        : null;
+
+    const bossClass =
+      bossMeta
+        ? ' boss-coded-choice'
+        : '';
+
+    const bossStyle =
+      bossMeta
+        ? (
+            ' style="' +
+            '--choice-accent:' +
+            escapeHtml(bossMeta.accent) +
+            ';--choice-soft:' +
+            escapeHtml(bossMeta.soft) +
+            ';"'
+          )
+        : '';
+
     return `
       <button
         type="button"
-        class="guild-choice-button ${selected ? 'active' : ''}"
+        class="guild-choice-button${bossClass} ${selected ? 'active' : ''}"
         data-guild-control-group="${escapeHtml(group)}"
-        data-guild-control-value="${escapeHtml(value)}"
+        data-guild-control-value="${escapeHtml(value)}"${bossStyle}
       >${escapeHtml(label)}</button>
     `;
   }
