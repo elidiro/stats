@@ -220,15 +220,15 @@
   };
 
   const CLASS_DISTRIBUTION_COLOURS = {
-    'Common': '#9aa1ad',
-    'Uncommon': '#4ed07d',
-    'Rare': '#72cfff',
-    'Epic': '#b85cff',
-    'Legend': '#d6a84f',
-    'Mythic': '#ef4444',
-    'Chaotic': '#8f2c68',
-    'Hoely': '#eadfbd',
-    'M Hoely': '#f7edcf',
+    'Common': '#999999',
+    'Uncommon': '#6bb74a',
+    'Rare': '#3a5cd7',
+    'Epic': '#8100d7',
+    'Legend': '#d49e00',
+    'Mythic': '#980000',
+    'Chaotic': '#4c1130',
+    'Hoely': '#fffcf3',
+    'M Hoely': '#fffcf3',
     'God Hoe': '#ffffff'
   };
 
@@ -276,7 +276,8 @@
   let guildRecordMetric = 'dpr';
   let guildRecordBoss = 'ALL';
 
-  let h2hOpponent = '';
+  let h2hPlayerLeft = '';
+  let h2hPlayerRight = '';
   let h2hBossCode = 'ALL';
   let h2hPeriod = 'd30';
 
@@ -3706,18 +3707,8 @@
 
 
   function getClassDistributionColour(name, fallback) {
-    const colours = {
-      'Common': '#9aa0aa',
-      'Uncommon': '#52d273',
-      'Rare': '#63c6ff',
-      'Epic': '#b248ff',
-      'Legend': '#d8ad4f',
-      'Mythic': '#ff4d4d',
-      'Chaotic': '#8f2f6f',
-      'Hoely': '#f1e2bd',
-      'M Hoely': '#f7eed9',
-      'God Hoe': '#ffffff'
-    };
+    const colours =
+      CLASS_DISTRIBUTION_COLOURS;
 
     return colours[name] || fallback || '#ffffff';
   }
@@ -4633,23 +4624,46 @@
       return;
     }
 
+    const players =
+      (guildData.players || []).slice();
+
+    if (!players.length) {
+      h2hPlayerLeft = '';
+      h2hPlayerRight = '';
+      return;
+    }
+
     if (
-      !h2hOpponent ||
-      (guildData.players || []).indexOf(
-        h2hOpponent
-      ) === -1 ||
-      h2hOpponent === guildData.player
+      !h2hPlayerLeft ||
+      players.indexOf(h2hPlayerLeft) === -1
     ) {
-      h2hOpponent =
-        guildData.defaultOpponent ||
-        (guildData.players || [])
-          .find(function(name) {
-            return name !== guildData.player;
-          }) ||
-        '';
+      h2hPlayerLeft =
+        players.indexOf(guildData.player) !== -1
+          ? guildData.player
+          : players[0];
+    }
+
+    if (
+      !h2hPlayerRight ||
+      players.indexOf(h2hPlayerRight) === -1 ||
+      h2hPlayerRight === h2hPlayerLeft
+    ) {
+      const preferred =
+        guildData.defaultOpponent;
+
+      h2hPlayerRight =
+        preferred &&
+        players.indexOf(preferred) !== -1 &&
+        preferred !== h2hPlayerLeft
+          ? preferred
+          : (
+              players.find(function(name) {
+                return name !== h2hPlayerLeft;
+              }) ||
+              ''
+            );
     }
   }
-
 
   function renderGuildPage() {
     renderGuildLeaderboard();
@@ -4841,16 +4855,8 @@
     const primaryMetric =
       guildLeaderboardMetric;
 
-    const secondaryMetric =
-      primaryMetric === 'dpr'
-        ? 'damage'
-        : 'dpr';
-
     const primaryRank =
       row[primaryMetric + 'Rank'];
-
-    const secondaryRank =
-      row[secondaryMetric + 'Rank'];
 
     const podiumClass =
       Number.isFinite(primaryRank) &&
@@ -4867,6 +4873,15 @@
     const count =
       row[primaryMetric + 'Count'];
 
+    const playerSubline =
+      guildLeaderboardPeriod === 'recent'
+        ? ''
+        : `
+          <span>
+            ${String(count || 0)}/${String(row.totalDays || 0)} attacks
+          </span>
+        `;
+
     return `
       <div class="guild-leaderboard-row${podiumClass}${selfClass}">
         <span class="guild-leaderboard-position">
@@ -4874,18 +4889,7 @@
         </span>
         <div class="guild-leaderboard-player">
           <strong>${escapeHtml(row.name)}</strong>
-          <span>
-            ${escapeHtml(
-              guildLeaderboardPeriod === 'recent'
-                ? 'Latest result'
-                : (
-                    String(count || 0) +
-                    '/' +
-                    String(row.totalDays || 0) +
-                    ' attacks'
-                  )
-            )}
-          </span>
+          ${playerSubline}
         </div>
         <div class="guild-leaderboard-values">
           <strong>
@@ -4894,19 +4898,10 @@
               primaryMetric
             )}
           </strong>
-          <span>
-            ${secondaryMetric === 'dpr' ? 'DPR' : 'DMG'}
-            ${formatGuildMetricValue(
-              row[secondaryMetric],
-              secondaryMetric
-            )}
-            ${formatRankHtml(secondaryRank)}
-          </span>
         </div>
       </div>
     `;
   }
-
 
   function formatGuildMetricValue(value, metric) {
     return metric === 'damage'
@@ -4957,6 +4952,42 @@
     `;
   }
 
+
+  function createGuildBossControlButtonHtml(
+    group,
+    code,
+    selected
+  ) {
+    const meta =
+      BOSS_META[code] ||
+      BOSS_META.ALL;
+
+    const imageUrl =
+      code === 'ALL'
+        ? ''
+        : getBossImage(code);
+
+    const content =
+      imageUrl
+        ? (
+            '<img src="' +
+            escapeHtml(imageUrl) +
+            '" alt="" class="guild-boss-choice-sprite">'
+          )
+        : '<span class="guild-boss-all-label">ALL</span>';
+
+    return `
+      <button
+        type="button"
+        class="guild-choice-button guild-boss-image-button boss-coded-choice ${selected ? 'active' : ''}"
+        data-guild-control-group="${escapeHtml(group)}"
+        data-guild-control-value="${escapeHtml(code)}"
+        aria-label="${escapeHtml(meta.name)}"
+        title="${escapeHtml(meta.name)}"
+        style="--choice-accent:${escapeHtml(meta.accent)};--choice-soft:${escapeHtml(meta.soft)};"
+      >${content}</button>
+    `;
+  }
 
   function bindGuildControlButtons(container) {
     container
@@ -5141,18 +5172,24 @@
     initialiseGuildDefaults();
 
     const result = calculateCurrentH2h();
-    const selfName = capitalize(guildData.player);
-    const opponent = h2hOpponent || '—';
+    const leftName =
+      h2hPlayerLeft === guildData.player
+        ? capitalize(h2hPlayerLeft)
+        : (h2hPlayerLeft || '—');
+    const rightName =
+      h2hPlayerRight === guildData.player
+        ? capitalize(h2hPlayerRight)
+        : (h2hPlayerRight || '—');
 
-    const bossButtons = [
-      ['ALL', 'All'],
-      ['TK', 'TK'],
-      ['FD', 'FD'],
-      ['FDe', 'FDe'],
-      ['Snek', 'Snek'],
-      ['SG', 'SG'],
-      ['CM', 'CM'],
-      ['SM', 'SM']
+    const bossCodes = [
+      'ALL',
+      'TK',
+      'FD',
+      'FDe',
+      'Snek',
+      'SG',
+      'CM',
+      'SM'
     ];
 
     const periodButtons = [
@@ -5163,45 +5200,46 @@
       ['d180', '6M']
     ];
 
-    container.innerHTML = `
-      <div class="h2h-player-selector-row">
-        <span class="tile-heading">Opponent</span>
-        <button
-          type="button"
-          class="h2h-player-button"
-          onclick="openGuildPlayerPicker()"
-        >
-          ${escapeHtml(opponent)}
-          <span>›</span>
-        </button>
-      </div>
+    const selectedBoss =
+      BOSS_META[h2hBossCode] ||
+      BOSS_META.ALL;
 
+    container.innerHTML = `
       <div class="h2h-scoreboard">
-        <div class="h2h-person h2h-self">
-          <strong>${escapeHtml(selfName)}</strong>
-          <span>${result.selfWins}</span>
+        <div class="h2h-person h2h-self h2h-left">
+          <button
+            type="button"
+            class="h2h-name-button"
+            onclick="openGuildPlayerPicker('left')"
+            aria-label="Choose left player"
+          >${escapeHtml(leftName)}</button>
+          <span class="h2h-score-value">${result.leftWins}</span>
         </div>
         <div class="h2h-divider">—</div>
-        <div class="h2h-person h2h-opponent">
-          <strong>${escapeHtml(opponent)}</strong>
-          <span>${result.opponentWins}</span>
+        <div class="h2h-person h2h-opponent h2h-right">
+          <button
+            type="button"
+            class="h2h-name-button"
+            onclick="openGuildPlayerPicker('right')"
+            aria-label="Choose right player"
+          >${escapeHtml(rightName)}</button>
+          <span class="h2h-score-value">${result.rightWins}</span>
         </div>
       </div>
 
       <div class="h2h-balance">
         <span
           class="h2h-balance-self"
-          style="width:${result.totalWins ? (result.selfWins / result.totalWins * 100) : 50}%"
+          style="width:${result.totalWins ? (result.leftWins / result.totalWins * 100) : 50}%"
         ></span>
       </div>
 
-      <div class="guild-control-row guild-boss-tabs">
-        ${bossButtons.map(function(item) {
-          return createGuildControlButtonHtml(
-            item[1],
+      <div class="guild-control-row guild-boss-tabs guild-boss-image-tabs h2h-boss-image-tabs">
+        ${bossCodes.map(function(code) {
+          return createGuildBossControlButtonHtml(
             'h2hBoss',
-            item[0],
-            h2hBossCode === item[0]
+            code,
+            h2hBossCode === code
           );
         }).join('')}
       </div>
@@ -5218,11 +5256,7 @@
       </div>
 
       <div class="h2h-summary-line">
-        ${result.meetings} counted days · ${escapeHtml(
-          h2hBossCode === 'ALL'
-            ? 'All bosses'
-            : h2hBossCode
-        )}
+        ${result.meetings} counted days · ${escapeHtml(selectedBoss.name)}
       </div>
 
       <button
@@ -5244,7 +5278,6 @@
     );
   }
 
-
   function h2hPeriodDays() {
     const map = {
       d7: 7,
@@ -5260,8 +5293,8 @@
 
   function calculateCurrentH2h() {
     const empty = {
-      selfWins: 0,
-      opponentWins: 0,
+      leftWins: 0,
+      rightWins: 0,
       meetings: 0,
       totalWins: 0,
       rows: []
@@ -5269,23 +5302,25 @@
 
     if (
       !guildData ||
-      !h2hOpponent ||
+      !h2hPlayerLeft ||
+      !h2hPlayerRight ||
+      h2hPlayerLeft === h2hPlayerRight ||
       !(guildData.players || []).length
     ) {
       return empty;
     }
 
-    const selfIndex =
+    const leftIndex =
       guildData.players.indexOf(
-        guildData.player
+        h2hPlayerLeft
       );
 
-    const opponentIndex =
+    const rightIndex =
       guildData.players.indexOf(
-        h2hOpponent
+        h2hPlayerRight
       );
 
-    if (selfIndex < 0 || opponentIndex < 0) {
+    if (leftIndex < 0 || rightIndex < 0) {
       return empty;
     }
 
@@ -5309,8 +5344,8 @@
       : null;
 
     const rows = [];
-    let selfWins = 0;
-    let opponentWins = 0;
+    let leftWins = 0;
+    let rightWins = 0;
 
     source.forEach(function(day) {
       const date =
@@ -5327,81 +5362,87 @@
         return;
       }
 
-      const selfDpr =
-        parseNumeric(day.dpr[selfIndex]);
-      const opponentDpr =
-        parseNumeric(day.dpr[opponentIndex]);
-      const selfDamage =
-        parseNumeric(day.damage[selfIndex]);
-      const opponentDamage =
-        parseNumeric(day.damage[opponentIndex]);
+      const leftDpr =
+        parseNumeric(day.dpr[leftIndex]);
+      const rightDpr =
+        parseNumeric(day.dpr[rightIndex]);
+      const leftDamage =
+        parseNumeric(day.damage[leftIndex]);
+      const rightDamage =
+        parseNumeric(day.damage[rightIndex]);
 
-      const selfAttacked =
-        Number.isFinite(selfDpr);
-      const opponentAttacked =
-        Number.isFinite(opponentDpr);
-
-      if (!selfAttacked && !opponentAttacked) {
+      /*
+       * A matchup only exists when BOTH players have a DPR
+       * result for that day. An absence / "none" result does
+       * not award a free win to the other player.
+       */
+      if (
+        !Number.isFinite(leftDpr) ||
+        !Number.isFinite(rightDpr)
+      ) {
         return;
       }
 
       let winner = '';
 
-      if (selfAttacked && !opponentAttacked) {
-        winner = 'self';
-      } else if (!selfAttacked && opponentAttacked) {
-        winner = 'opponent';
-      } else if (selfDpr > opponentDpr) {
-        winner = 'self';
-      } else if (opponentDpr > selfDpr) {
-        winner = 'opponent';
-      } else if (
-        Number.isFinite(selfDamage) &&
-        Number.isFinite(opponentDamage) &&
-        selfDamage !== opponentDamage
-      ) {
-        winner =
-          selfDamage > opponentDamage
-            ? 'self'
-            : 'opponent';
-      }
-
-      if (!winner) {
+      if (leftDpr > rightDpr) {
+        winner = 'left';
+      } else if (rightDpr > leftDpr) {
+        winner = 'right';
+      } else {
+        /*
+         * Equal DPR is not counted. There is deliberately no
+         * draw counter in the H2H score.
+         */
         return;
       }
 
-      if (winner === 'self') {
-        selfWins++;
+      if (winner === 'left') {
+        leftWins++;
       } else {
-        opponentWins++;
+        rightWins++;
       }
 
       rows.push({
         date: day.date,
         boss: day.boss,
         bossCode: day.bossCode,
-        selfDpr: selfDpr,
-        opponentDpr: opponentDpr,
-        selfDamage: selfDamage,
-        opponentDamage: opponentDamage,
+        leftDpr: leftDpr,
+        rightDpr: rightDpr,
+        leftDamage: leftDamage,
+        rightDamage: rightDamage,
         winner: winner
       });
     });
 
     return {
-      selfWins: selfWins,
-      opponentWins: opponentWins,
+      leftWins: leftWins,
+      rightWins: rightWins,
       meetings: rows.length,
-      totalWins: selfWins + opponentWins,
+      totalWins: leftWins + rightWins,
       rows: rows
     };
   }
 
-
-  function openGuildPlayerPicker() {
+  function openGuildPlayerPicker(side) {
     if (!guildData) {
       return;
     }
+
+    const targetSide =
+      side === 'right'
+        ? 'right'
+        : 'left';
+
+    const otherPlayer =
+      targetSide === 'left'
+        ? h2hPlayerRight
+        : h2hPlayerLeft;
+
+    const selectedPlayer =
+      targetSide === 'left'
+        ? h2hPlayerLeft
+        : h2hPlayerRight;
 
     const content =
       document.createElement('div');
@@ -5411,7 +5452,7 @@
 
     (guildData.players || [])
       .filter(function(name) {
-        return name !== guildData.player;
+        return name !== otherPlayer;
       })
       .forEach(function(name) {
         const button =
@@ -5420,13 +5461,21 @@
         button.type = 'button';
         button.className =
           'guild-player-picker-button ' +
-          (name === h2hOpponent ? 'active' : '');
-        button.textContent = name;
+          (name === selectedPlayer ? 'active' : '');
+        button.textContent =
+          name === guildData.player
+            ? capitalize(name)
+            : name;
 
         button.addEventListener(
           'click',
           function() {
-            h2hOpponent = name;
+            if (targetSide === 'left') {
+              h2hPlayerLeft = name;
+            } else {
+              h2hPlayerRight = name;
+            }
+
             closeGuildSheet();
             renderGuildH2hCards();
           }
@@ -5436,12 +5485,13 @@
       });
 
     openGuildSheet(
-      'Choose opponent',
+      targetSide === 'left'
+        ? 'Choose left player'
+        : 'Choose right player',
       'Guild members',
       content
     );
   }
-
 
   function openH2hResultsSheet() {
     const result = calculateCurrentH2h();
@@ -5453,7 +5503,7 @@
 
     if (!result.rows.length) {
       content.innerHTML =
-        '<p class="guild-loading-text">No matchup days match these filters.</p>';
+        '<p class="guild-loading-text">No shared results match these filters.</p>';
     }
 
     result.rows.forEach(function(row) {
@@ -5463,20 +5513,41 @@
       item.className =
         'h2h-result-row';
 
+      const bossImage =
+        row.bossCode
+          ? getBossImage(row.bossCode)
+          : '';
+
       item.innerHTML = `
         <div class="h2h-result-date">
           ${escapeHtml(compactDate(row.date))}
-          <span>${escapeHtml(row.bossCode || row.boss || '')}</span>
+          ${
+            bossImage
+              ? '<img class="h2h-result-boss-sprite" src="' +
+                escapeHtml(bossImage) +
+                '" alt="' +
+                escapeHtml(row.boss || row.bossCode || '') +
+                '">'
+              : ''
+          }
         </div>
         <div class="h2h-result-values">
-          <div class="${row.winner === 'self' ? 'winner' : ''}">
-            <strong>${Number.isFinite(row.selfDpr) ? formatDpr(row.selfDpr) : '—'}</strong>
-            <span>${escapeHtml(capitalize(guildData.player))}</span>
+          <div class="${row.winner === 'left' ? 'winner' : ''}">
+            <strong>${formatDpr(row.leftDpr)}</strong>
+            <span>${escapeHtml(
+              h2hPlayerLeft === guildData.player
+                ? capitalize(h2hPlayerLeft)
+                : h2hPlayerLeft
+            )}</span>
           </div>
           <span>vs</span>
-          <div class="${row.winner === 'opponent' ? 'winner' : ''}">
-            <strong>${Number.isFinite(row.opponentDpr) ? formatDpr(row.opponentDpr) : '—'}</strong>
-            <span>${escapeHtml(h2hOpponent)}</span>
+          <div class="${row.winner === 'right' ? 'winner' : ''}">
+            <strong>${formatDpr(row.rightDpr)}</strong>
+            <span>${escapeHtml(
+              h2hPlayerRight === guildData.player
+                ? capitalize(h2hPlayerRight)
+                : h2hPlayerRight
+            )}</span>
           </div>
         </div>
       `;
@@ -5484,20 +5555,33 @@
       content.appendChild(item);
     });
 
+    const selectedBoss =
+      BOSS_META[h2hBossCode] ||
+      BOSS_META.ALL;
+
+    const leftTitleName =
+      h2hPlayerLeft === guildData.player
+        ? capitalize(h2hPlayerLeft)
+        : h2hPlayerLeft;
+
+    const rightTitleName =
+      h2hPlayerRight === guildData.player
+        ? capitalize(h2hPlayerRight)
+        : h2hPlayerRight;
+
     openGuildSheet(
-      capitalize(guildData.player) +
-        ' ' + result.selfWins +
-        ' — ' + result.opponentWins +
-        ' ' + h2hOpponent,
+      leftTitleName +
+        ' ' + result.leftWins +
+        ' — ' + result.rightWins +
+        ' ' + rightTitleName,
       (
         h2hPeriodDays() +
         ' days · ' +
-        (h2hBossCode === 'ALL' ? 'All bosses' : h2hBossCode)
+        selectedBoss.name
       ),
       content
     );
   }
-
 
   function renderGuildRecords() {
     const container =
@@ -5515,15 +5599,15 @@
       return;
     }
 
-    const bossButtons = [
-      ['ALL', 'All'],
-      ['TK', 'TK'],
-      ['FD', 'FD'],
-      ['FDe', 'FDe'],
-      ['Snek', 'Snek'],
-      ['SG', 'SG'],
-      ['CM', 'CM'],
-      ['SM', 'SM']
+    const bossCodes = [
+      'ALL',
+      'TK',
+      'FD',
+      'FDe',
+      'Snek',
+      'SG',
+      'CM',
+      'SM'
     ];
 
     const records =
@@ -5548,13 +5632,12 @@
           guildRecordMetric === 'damage'
         )}
       </div>
-      <div class="guild-control-row guild-boss-tabs">
-        ${bossButtons.map(function(item) {
-          return createGuildControlButtonHtml(
-            item[1],
+      <div class="guild-control-row guild-boss-tabs guild-boss-image-tabs guild-record-boss-image-tabs">
+        ${bossCodes.map(function(code) {
+          return createGuildBossControlButtonHtml(
             'guildRecordBoss',
-            item[0],
-            guildRecordBoss === item[0]
+            code,
+            guildRecordBoss === code
           );
         }).join('')}
       </div>
@@ -5575,10 +5658,7 @@
               <span class="record-leaderboard-position">${position}</span>
               <div class="guild-record-player">
                 <strong>${escapeHtml(record.name)}</strong>
-                <span>
-                  ${escapeHtml(record.bossCode || '')}
-                  · ${escapeHtml(compactDate(record.date))}
-                </span>
+                <span>${escapeHtml(compactDate(record.date))}</span>
               </div>
               <strong class="guild-record-value">
                 ${guildRecordMetric === 'damage'
@@ -5600,7 +5680,6 @@
       container.querySelector('.guild-record-list')
     );
   }
-
 
   function parseCompactApiDate(value) {
     const text = String(value || '').trim();
@@ -6441,9 +6520,9 @@
     };
 
     const order = [
-      'home',
-      'bosses',
       'guild',
+      'bosses',
+      'home',
       'progress',
       'records'
     ];

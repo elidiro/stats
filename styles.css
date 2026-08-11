@@ -4155,3 +4155,279 @@ body.guild-view-active {
     transition: none !important;
   }
 }
+
+/* ==========================================================
+ * GUILD H2H + MOBILE TYPOGRAPHY REFINEMENT
+ * ========================================================== */
+
+/* Guild is now the left-most tab and Home remains the default centre tab. */
+.bottom-nav {
+  --nav-index: 2;
+}
+
+/* Larger, more legible Guild controls on phone screens. */
+.guild-choice-button:not(.guild-boss-image-button) {
+  font-size: 11.5px;
+  font-weight: 850;
+  letter-spacing: 0.01em;
+}
+
+/*
+ * Boss selectors use the actual sprites in one eight-item row.
+ * ALL remains a compact text badge because it has no single boss sprite.
+ */
+.guild-boss-tabs.guild-boss-image-tabs {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 5px;
+  width: 100%;
+  overflow: visible;
+  padding: 8px 2px 10px;
+}
+
+.guild-boss-image-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 43px;
+  padding: 4px 2px;
+  border-color: color-mix(
+    in srgb,
+    var(--choice-accent) 34%,
+    rgba(255, 255, 255, 0.07)
+  );
+  background: color-mix(
+    in srgb,
+    var(--choice-accent) 5%,
+    var(--surface-raised)
+  );
+}
+
+.guild-boss-image-button.active {
+  border-color: var(--choice-accent);
+  background: var(--choice-soft);
+  box-shadow:
+    0 0 15px color-mix(
+      in srgb,
+      var(--choice-accent) 28%,
+      transparent
+    ),
+    inset 0 0 10px color-mix(
+      in srgb,
+      var(--choice-accent) 13%,
+      transparent
+    );
+}
+
+.guild-boss-choice-sprite {
+  display: block;
+  width: 28px;
+  height: 28px;
+  max-width: 100%;
+  object-fit: contain;
+  filter:
+    drop-shadow(0 3px 5px rgba(0, 0, 0, 0.32));
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 220ms ease;
+}
+
+.guild-boss-image-button.active .guild-boss-choice-sprite {
+  transform: scale(1.08);
+  filter:
+    drop-shadow(
+      0 0 7px
+      color-mix(in srgb, var(--choice-accent) 62%, transparent)
+    );
+}
+
+.guild-boss-all-label {
+  color: var(--choice-accent);
+  font-size: 8.5px;
+  font-weight: 900;
+  letter-spacing: 0.045em;
+}
+
+/* Guild leaderboard: primary metric only, with stronger hierarchy. */
+.guild-leaderboard-row {
+  grid-template-columns: 38px minmax(0, 1fr) minmax(74px, auto);
+  min-height: 60px;
+  padding: 9px 11px;
+  align-items: stretch;
+}
+
+.guild-leaderboard-position {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.guild-leaderboard-player {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100%;
+}
+
+.guild-leaderboard-player strong {
+  font-size: 14.5px;
+  line-height: 1.15;
+}
+
+.guild-leaderboard-player span {
+  margin-top: 4px;
+  font-size: 9.5px;
+  line-height: 1.15;
+}
+
+.guild-leaderboard-values {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  align-self: stretch;
+  min-width: 78px;
+  text-align: right;
+}
+
+.guild-leaderboard-values strong {
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+/* Generic two-player H2H: both names are tappable selectors. */
+.h2h-scoreboard {
+  align-items: end;
+  margin-top: 4px;
+}
+
+.h2h-name-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  min-height: 30px;
+  padding: 5px 22px 5px 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.028);
+  color: #c5c8d5;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  position: relative;
+}
+
+.h2h-name-button::after {
+  content: '⌄';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  color: var(--muted);
+  font-size: 10px;
+  transform: translateY(-54%);
+}
+
+.h2h-name-button:active {
+  transform: scale(0.98);
+}
+
+.h2h-person .h2h-score-value {
+  display: block;
+  margin-top: 6px;
+}
+
+/* Tiny boss identity in each expanded H2H result row. */
+.h2h-result-date {
+  align-items: center;
+}
+
+.h2h-result-boss-sprite {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+/* Guild record rows: date only beneath a larger player name. */
+.guild-record-row {
+  grid-template-columns: 38px minmax(0, 1fr) minmax(76px, auto);
+  min-height: 59px;
+  padding: 9px 11px;
+  align-items: stretch;
+}
+
+.guild-record-row .record-leaderboard-position {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.guild-record-player {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100%;
+}
+
+.guild-record-player strong {
+  font-size: 14.5px;
+  line-height: 1.15;
+}
+
+.guild-record-player span {
+  margin-top: 4px;
+  font-size: 9.5px;
+  line-height: 1.15;
+}
+
+.guild-record-value {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  align-self: stretch;
+  min-width: 76px;
+  font-size: 17px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+@media (max-width: 380px) {
+  .guild-choice-button:not(.guild-boss-image-button) {
+    font-size: 11px;
+  }
+
+  .guild-boss-tabs.guild-boss-image-tabs {
+    gap: 4px;
+  }
+
+  .guild-boss-image-button {
+    min-height: 40px;
+  }
+
+  .guild-boss-choice-sprite {
+    width: 25px;
+    height: 25px;
+  }
+
+  .guild-leaderboard-player strong,
+  .guild-record-player strong {
+    font-size: 14px;
+  }
+
+  .guild-leaderboard-values strong,
+  .guild-record-value {
+    font-size: 16.5px;
+  }
+}

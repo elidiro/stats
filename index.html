@@ -540,11 +540,6 @@
         id="guildView"
         class="page-view hidden"
       >
-        <section class="page-heading-block guild-page-heading">
-          <p class="eyebrow">HoeswithBows</p>
-          <h2>Guild</h2>
-        </section>
-
         <section class="guild-feature-section">
           <div class="section-title-row">
             <div>
@@ -942,13 +937,13 @@
       ></span>
 
       <button
-        id="homeNavButton"
-        class="nav-item active"
+        id="guildNavButton"
+        class="nav-item"
         type="button"
-        onclick="showHomeView()"
+        onclick="showGuildView()"
       >
-        <span>⌂</span>
-        Home
+        <span class="shield-icon" aria-hidden="true"></span>
+        Guild
       </button>
 
       <button
@@ -962,13 +957,13 @@
       </button>
 
       <button
-        id="guildNavButton"
-        class="nav-item"
+        id="homeNavButton"
+        class="nav-item active"
         type="button"
-        onclick="showGuildView()"
+        onclick="showHomeView()"
       >
-        <span class="shield-icon" aria-hidden="true"></span>
-        Guild
+        <span>⌂</span>
+        Home
       </button>
 
       <button
