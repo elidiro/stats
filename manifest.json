@@ -1,8 +1,8 @@
 {
   "id": "/stats/",
-  "name": "Elidir Stats",
-  "short_name": "Elidir Stats",
-  "description": "Elidir's Archero 2 personal statistics app.",
+  "name": "Archero 2 Stats",
+  "short_name": "Archero 2",
+  "description": "Archero 2 guild statistics app.",
   "start_url": "/stats/",
   "scope": "/stats/",
   "display": "fullscreen",

@@ -133,6 +133,74 @@
       );
   }
 
+  .player-header {
+    min-width: 0;
+  }
+
+  .player-selector-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .player-selector {
+    width: auto;
+    max-width: min(390px, 72vw);
+    min-width: 0;
+    margin: 0;
+    padding: 0 24px 0 0;
+
+    border: 0;
+    outline: 0;
+
+    background:
+      transparent;
+
+    color: var(--text);
+
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1.12;
+    letter-spacing: -0.04em;
+
+    appearance: auto;
+    cursor: pointer;
+  }
+
+  .player-selector:focus-visible {
+    outline:
+      2px solid var(--accent);
+    outline-offset: 4px;
+    border-radius: 5px;
+  }
+
+  .player-selector option {
+    background: var(--surface-raised);
+    color: var(--text);
+    font-size: 16px;
+  }
+
+  .player-default-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+
+    border-radius: 50%;
+
+    background: var(--positive);
+    color: #07130d;
+
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+
   .app-header {
     display: flex;
     align-items: center;

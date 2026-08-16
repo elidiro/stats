@@ -25,9 +25,23 @@
     query.set('callback', callbackName);
     query.set('cacheBust', Date.now());
 
-    Object.keys(params || {})
+    const requestParams =
+      Object.assign(
+        {},
+        params || {}
+      );
+
+    if (
+      selectedPlayer &&
+      requestParams.player === undefined
+    ) {
+      requestParams.player =
+        selectedPlayer;
+    }
+
+    Object.keys(requestParams)
       .forEach(function(key) {
-        const value = params[key];
+        const value = requestParams[key];
 
         if (
           value !== undefined &&
@@ -264,7 +278,13 @@
   let streakSheetDragState = null;
 
   const APP_DATA_CACHE_KEY =
-    'elidir-stats-data-cache-v1';
+    'archero-stats-data-cache-v2';
+
+  const SELECTED_PLAYER_KEY =
+    'archero-stats-selected-player-v1';
+
+  let selectedPlayer = '';
+  let availablePlayers = [];
 
   let guildData = null;
   let activeMilestoneMetric = 'dpr';
@@ -301,6 +321,17 @@
         'change',
         function(event) {
           loadBossPage(
+            event.target.value
+          );
+        }
+      );
+
+    document
+      .getElementById('playerSelector')
+      .addEventListener(
+        'change',
+        function(event) {
+          switchPlayer(
             event.target.value
           );
         }
@@ -345,11 +376,10 @@
         );
       });
 
-    if (restoreCachedAppData()) {
-      refreshAppDataSilently();
-    } else {
-      loadInitialAppData(false);
-    }
+    selectedPlayer =
+      loadSavedPlayer();
+
+    initialisePlayerSelectionAndLoad();
   }
 
 
@@ -359,6 +389,188 @@
    * INITIAL APP PRELOAD
    * ==========================================================
    */
+
+  function loadSavedPlayer() {
+    try {
+      return String(
+        window.localStorage.getItem(
+          SELECTED_PLAYER_KEY
+        ) || ''
+      ).trim();
+    } catch (error) {
+      return '';
+    }
+  }
+
+
+  function saveSelectedPlayer() {
+    try {
+      window.localStorage.setItem(
+        SELECTED_PLAYER_KEY,
+        selectedPlayer
+      );
+    } catch (error) {
+      // Local storage is optional.
+    }
+  }
+
+
+  function renderPlayerSelector() {
+    const selector =
+      document.getElementById(
+        'playerSelector'
+      );
+
+    const check =
+      document.getElementById(
+        'playerDefaultCheck'
+      );
+
+    if (!selector) {
+      return;
+    }
+
+    selector.innerHTML = '';
+
+    availablePlayers.forEach(function(name) {
+      const option =
+        document.createElement('option');
+
+      option.value = name;
+      option.textContent =
+        capitalize(name);
+
+      selector.appendChild(option);
+    });
+
+    if (
+      selectedPlayer &&
+      availablePlayers.indexOf(selectedPlayer) !== -1
+    ) {
+      selector.value = selectedPlayer;
+    }
+
+    if (check) {
+      check.classList.toggle(
+        'hidden',
+        !selectedPlayer
+      );
+    }
+
+    if (selectedPlayer) {
+      selector.setAttribute(
+        'aria-label',
+        'Select player. ' +
+        capitalize(selectedPlayer) +
+        ' is your default player.'
+      );
+    }
+  }
+
+
+  async function initialisePlayerSelectionAndLoad() {
+    showLoading();
+
+    try {
+      const status =
+        await requestApiPromise(
+          'ping',
+          selectedPlayer
+            ? { player: selectedPlayer }
+            : {}
+        );
+
+      availablePlayers =
+        (status && status.players
+          ? status.players
+          : []
+        ).slice();
+
+      const resolved =
+        status && status.player
+          ? status.player
+          : (
+              selectedPlayer ||
+              (
+                status &&
+                status.defaultPlayer
+              ) ||
+              availablePlayers[0] ||
+              'elidir'
+            );
+
+      if (
+        availablePlayers.indexOf(resolved) === -1 &&
+        availablePlayers.length
+      ) {
+        selectedPlayer =
+          availablePlayers.indexOf('elidir') !== -1
+            ? 'elidir'
+            : availablePlayers[0];
+      } else {
+        selectedPlayer = resolved;
+      }
+
+      saveSelectedPlayer();
+      renderPlayerSelector();
+
+      if (restoreCachedAppData()) {
+        refreshAppDataSilently();
+      } else {
+        loadInitialAppData(false);
+      }
+    } catch (error) {
+      showError(error);
+    }
+  }
+
+
+  async function switchPlayer(playerName) {
+    const target =
+      availablePlayers.find(function(name) {
+        return name === playerName;
+      });
+
+    if (!target || target === selectedPlayer) {
+      renderPlayerSelector();
+      return;
+    }
+
+    const previousView =
+      currentView;
+
+    selectedPlayer = target;
+    saveSelectedPlayer();
+    renderPlayerSelector();
+
+    homepageData = null;
+    progressData = null;
+    recordsData = null;
+    guildData = null;
+
+    Object.keys(bossPageCache)
+      .forEach(function(code) {
+        delete bossPageCache[code];
+      });
+
+    h2hPlayerLeft = '';
+    h2hPlayerRight = '';
+
+    await loadInitialAppData(true);
+
+    if (previousView === 'bosses') {
+      showBossesView();
+    } else if (previousView === 'guild') {
+      showGuildView();
+    } else if (previousView === 'progress') {
+      showProgressView();
+    } else if (previousView === 'records') {
+      showRecordsView();
+    } else {
+      showHomeView(false);
+    }
+  }
+
 
   function requestApiPromise(api, params) {
     return new Promise(function(resolve, reject) {
@@ -500,9 +712,17 @@
       !cached ||
       !cached.homepageData ||
       !cached.progressData ||
-      !cached.recordsData
+      !cached.recordsData ||
+      !cached.selectedPlayer ||
+      cached.selectedPlayer !== selectedPlayer
     ) {
       return false;
+    }
+
+    if (cached.availablePlayers) {
+      availablePlayers =
+        cached.availablePlayers.slice();
+      renderPlayerSelector();
     }
 
     homepageData = cached.homepageData;
@@ -557,6 +777,8 @@
         APP_DATA_CACHE_KEY,
         JSON.stringify({
           savedAt: Date.now(),
+          selectedPlayer: selectedPlayer,
+          availablePlayers: availablePlayers,
           homepageData: homepageData,
           progressData: progressData,
           recordsData: recordsData,
@@ -710,10 +932,23 @@
 
 
   function renderIdentity(identity) {
-    setText(
-      'playerName',
-      capitalize(identity.player)
-    );
+    selectedPlayer =
+      identity.player ||
+      selectedPlayer;
+
+    if (
+      identity.player &&
+      availablePlayers.indexOf(identity.player) === -1
+    ) {
+      availablePlayers.push(
+        identity.player
+      );
+      availablePlayers.sort(function(a, b) {
+        return a.localeCompare(b);
+      });
+    }
+
+    renderPlayerSelector();
 
     setText(
       'guildName',

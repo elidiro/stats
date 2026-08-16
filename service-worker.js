@@ -1,4 +1,4 @@
-const CACHE_NAME = 'elidir-stats-shell-v7';
+const CACHE_NAME = 'archero-stats-shell-v8';
 
 const CORE_FILES = [
   './',
